@@ -1,0 +1,452 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C668236A1763C472000C603C /* kvassert.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235B1763C472000C603C /* kvassert.c */; };
+		C668236B1763C472000C603C /* kvassert.h in Headers */ = {isa = PBXBuildFile; fileRef = C668235C1763C472000C603C /* kvassert.h */; };
+		C668236C1763C472000C603C /* kvblock.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235D1763C472000C603C /* kvblock.c */; };
+		C668236D1763C472000C603C /* kvblock.h in Headers */ = {isa = PBXBuildFile; fileRef = C668235E1763C472000C603C /* kvblock.h */; };
+		C668236E1763C472000C603C /* kvbloom.h in Headers */ = {isa = PBXBuildFile; fileRef = C668235F1763C472000C603C /* kvbloom.h */; };
+		C668236F1763C472000C603C /* kvdb.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823601763C472000C603C /* kvdb.c */; };
+		C66823701763C472000C603C /* kvdb.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
+		C66823711763C472000C603C /* kvendian.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823621763C472000C603C /* kvendian.h */; };
+		C66823721763C472000C603C /* kvmurmurhash.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823631763C472000C603C /* kvmurmurhash.h */; };
+		C66823731763C472000C603C /* kvpaddingutils.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823641763C472000C603C /* kvpaddingutils.h */; };
+		C66823741763C472000C603C /* kvprime.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823651763C472000C603C /* kvprime.c */; };
+		C66823751763C472000C603C /* kvprime.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823661763C472000C603C /* kvprime.h */; };
+		C66823761763C472000C603C /* kvtable.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823671763C472000C603C /* kvtable.c */; };
+		C66823771763C472000C603C /* kvtable.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823681763C472000C603C /* kvtable.h */; };
+		C66823781763C472000C603C /* kvtypes.h in Headers */ = {isa = PBXBuildFile; fileRef = C66823691763C472000C603C /* kvtypes.h */; };
+		C66823821763C48F000C603C /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823811763C48F000C603C /* main.c */; };
+		C66823881763C4D6000C603C /* libkvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C66823531763C246000C603C /* libkvdb.a */; };
+		C668239B1763EA77000C603C /* kvassert.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235B1763C472000C603C /* kvassert.c */; };
+		C668239D1763EA77000C603C /* kvblock.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235D1763C472000C603C /* kvblock.c */; };
+		C66823A01763EA77000C603C /* kvdb.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823601763C472000C603C /* kvdb.c */; };
+		C66823A51763EA77000C603C /* kvprime.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823651763C472000C603C /* kvprime.c */; };
+		C66823A71763EA77000C603C /* kvtable.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823671763C472000C603C /* kvtable.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C668237D1763C48F000C603C /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		C668238B1763EA47000C603C /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/${PRODUCT_NAME}";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		C66823531763C246000C603C /* libkvdb.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkvdb.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		C668235B1763C472000C603C /* kvassert.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvassert.c; sourceTree = "<group>"; };
+		C668235C1763C472000C603C /* kvassert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvassert.h; sourceTree = "<group>"; };
+		C668235D1763C472000C603C /* kvblock.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvblock.c; sourceTree = "<group>"; };
+		C668235E1763C472000C603C /* kvblock.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvblock.h; sourceTree = "<group>"; };
+		C668235F1763C472000C603C /* kvbloom.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvbloom.h; sourceTree = "<group>"; };
+		C66823601763C472000C603C /* kvdb.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvdb.c; sourceTree = "<group>"; };
+		C66823611763C472000C603C /* kvdb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvdb.h; sourceTree = "<group>"; };
+		C66823621763C472000C603C /* kvendian.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvendian.h; sourceTree = "<group>"; };
+		C66823631763C472000C603C /* kvmurmurhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvmurmurhash.h; sourceTree = "<group>"; };
+		C66823641763C472000C603C /* kvpaddingutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvpaddingutils.h; sourceTree = "<group>"; };
+		C66823651763C472000C603C /* kvprime.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvprime.c; sourceTree = "<group>"; };
+		C66823661763C472000C603C /* kvprime.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvprime.h; sourceTree = "<group>"; };
+		C66823671763C472000C603C /* kvtable.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvtable.c; sourceTree = "<group>"; };
+		C66823681763C472000C603C /* kvtable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvtable.h; sourceTree = "<group>"; };
+		C66823691763C472000C603C /* kvtypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvtypes.h; sourceTree = "<group>"; };
+		C668237F1763C48F000C603C /* kvdbtest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kvdbtest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C66823811763C48F000C603C /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		C668238D1763EA47000C603C /* libkvdb-ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libkvdb-ios.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C668238F1763EA47000C603C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C66823501763C246000C603C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C668237C1763C48F000C603C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C66823881763C4D6000C603C /* libkvdb.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C668238A1763EA47000C603C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C668234A1763C246000C603C = {
+			isa = PBXGroup;
+			children = (
+				C668235A1763C472000C603C /* src */,
+				C66823801763C48F000C603C /* kvdbtest */,
+				C668238E1763EA47000C603C /* Frameworks */,
+				C66823541763C246000C603C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C66823541763C246000C603C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C66823531763C246000C603C /* libkvdb.a */,
+				C668237F1763C48F000C603C /* kvdbtest */,
+				C668238D1763EA47000C603C /* libkvdb-ios.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C668235A1763C472000C603C /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C668235B1763C472000C603C /* kvassert.c */,
+				C668235C1763C472000C603C /* kvassert.h */,
+				C668235D1763C472000C603C /* kvblock.c */,
+				C668235E1763C472000C603C /* kvblock.h */,
+				C668235F1763C472000C603C /* kvbloom.h */,
+				C66823601763C472000C603C /* kvdb.c */,
+				C66823611763C472000C603C /* kvdb.h */,
+				C66823621763C472000C603C /* kvendian.h */,
+				C66823631763C472000C603C /* kvmurmurhash.h */,
+				C66823641763C472000C603C /* kvpaddingutils.h */,
+				C66823651763C472000C603C /* kvprime.c */,
+				C66823661763C472000C603C /* kvprime.h */,
+				C66823671763C472000C603C /* kvtable.c */,
+				C66823681763C472000C603C /* kvtable.h */,
+				C66823691763C472000C603C /* kvtypes.h */,
+			);
+			name = src;
+			path = ../src;
+			sourceTree = "<group>";
+		};
+		C66823801763C48F000C603C /* kvdbtest */ = {
+			isa = PBXGroup;
+			children = (
+				C66823811763C48F000C603C /* main.c */,
+			);
+			path = kvdbtest;
+			sourceTree = "<group>";
+		};
+		C668238E1763EA47000C603C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C668238F1763EA47000C603C /* Foundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		C66823511763C246000C603C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C668236B1763C472000C603C /* kvassert.h in Headers */,
+				C668236D1763C472000C603C /* kvblock.h in Headers */,
+				C668236E1763C472000C603C /* kvbloom.h in Headers */,
+				C66823701763C472000C603C /* kvdb.h in Headers */,
+				C66823711763C472000C603C /* kvendian.h in Headers */,
+				C66823721763C472000C603C /* kvmurmurhash.h in Headers */,
+				C66823731763C472000C603C /* kvpaddingutils.h in Headers */,
+				C66823751763C472000C603C /* kvprime.h in Headers */,
+				C66823771763C472000C603C /* kvtable.h in Headers */,
+				C66823781763C472000C603C /* kvtypes.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		C66823521763C246000C603C /* kvdb */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C66823571763C246000C603C /* Build configuration list for PBXNativeTarget "kvdb" */;
+			buildPhases = (
+				C668234F1763C246000C603C /* Sources */,
+				C66823501763C246000C603C /* Frameworks */,
+				C66823511763C246000C603C /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = kvdb;
+			productName = kvdb;
+			productReference = C66823531763C246000C603C /* libkvdb.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+		C668237E1763C48F000C603C /* kvdbtest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C66823851763C48F000C603C /* Build configuration list for PBXNativeTarget "kvdbtest" */;
+			buildPhases = (
+				C668237B1763C48F000C603C /* Sources */,
+				C668237C1763C48F000C603C /* Frameworks */,
+				C668237D1763C48F000C603C /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = kvdbtest;
+			productName = kvdbtest;
+			productReference = C668237F1763C48F000C603C /* kvdbtest */;
+			productType = "com.apple.product-type.tool";
+		};
+		C668238C1763EA47000C603C /* kvdb-ios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C66823981763EA47000C603C /* Build configuration list for PBXNativeTarget "kvdb-ios" */;
+			buildPhases = (
+				C66823891763EA47000C603C /* Sources */,
+				C668238A1763EA47000C603C /* Frameworks */,
+				C668238B1763EA47000C603C /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "kvdb-ios";
+			productName = "kvdb-ios";
+			productReference = C668238D1763EA47000C603C /* libkvdb-ios.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C668234B1763C246000C603C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0460;
+				ORGANIZATIONNAME = etpan;
+			};
+			buildConfigurationList = C668234E1763C246000C603C /* Build configuration list for PBXProject "kvdb" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = C668234A1763C246000C603C;
+			productRefGroup = C66823541763C246000C603C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C66823521763C246000C603C /* kvdb */,
+				C668237E1763C48F000C603C /* kvdbtest */,
+				C668238C1763EA47000C603C /* kvdb-ios */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C668234F1763C246000C603C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C668236A1763C472000C603C /* kvassert.c in Sources */,
+				C668236C1763C472000C603C /* kvblock.c in Sources */,
+				C668236F1763C472000C603C /* kvdb.c in Sources */,
+				C66823741763C472000C603C /* kvprime.c in Sources */,
+				C66823761763C472000C603C /* kvtable.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C668237B1763C48F000C603C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C66823821763C48F000C603C /* main.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C66823891763EA47000C603C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C668239B1763EA77000C603C /* kvassert.c in Sources */,
+				C668239D1763EA77000C603C /* kvblock.c in Sources */,
+				C66823A01763EA77000C603C /* kvdb.c in Sources */,
+				C66823A51763EA77000C603C /* kvprime.c in Sources */,
+				C66823A71763EA77000C603C /* kvtable.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C66823551763C246000C603C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				ONLY_ACTIVE_ARCH = YES;
+			};
+			name = Debug;
+		};
+		C66823561763C246000C603C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+			};
+			name = Release;
+		};
+		C66823581763C246000C603C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				EXECUTABLE_PREFIX = lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C66823591763C246000C603C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				EXECUTABLE_PREFIX = lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		C66823861763C48F000C603C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		C66823871763C48F000C603C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		C66823991763EA47000C603C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DSTROOT = /tmp/kvdb_ios.dst;
+				IPHONEOS_DEPLOYMENT_TARGET = 6.1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		C668239A1763EA47000C603C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DSTROOT = /tmp/kvdb_ios.dst;
+				IPHONEOS_DEPLOYMENT_TARGET = 6.1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C668234E1763C246000C603C /* Build configuration list for PBXProject "kvdb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C66823551763C246000C603C /* Debug */,
+				C66823561763C246000C603C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C66823571763C246000C603C /* Build configuration list for PBXNativeTarget "kvdb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C66823581763C246000C603C /* Debug */,
+				C66823591763C246000C603C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C66823851763C48F000C603C /* Build configuration list for PBXNativeTarget "kvdbtest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C66823861763C48F000C603C /* Debug */,
+				C66823871763C48F000C603C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C66823981763EA47000C603C /* Build configuration list for PBXNativeTarget "kvdb-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C66823991763EA47000C603C /* Debug */,
+				C668239A1763EA47000C603C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C668234B1763C246000C603C /* Project object */;
+}
