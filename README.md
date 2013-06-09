@@ -1,7 +1,7 @@
 kvdb
 ====
 
-Key-Value Database designed for mobile.
+Lightweight Key-Value Database.
 
 - Use only one file
 - Low memory usage
