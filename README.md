@@ -1,7 +1,7 @@
 kvdb
 ====
 
-Lightweight Key-Value Database.
+A Lightweight Key-Value Database.
 
 - Use only one file
 - Low memory usage
