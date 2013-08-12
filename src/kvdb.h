@@ -30,6 +30,18 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
 // Returns -2 if there's a I/O error.
 int kvdb_delete(kvdb * db, const char * key, size_t key_size);
 
+struct kvdb_enumerate_cb_params {
+	const char * key;
+	size_t key_size;
+};
+
+typedef void kvdb_enumerate_callback(kvdb * db,
+	                                 struct kvdb_enumerate_cb_params * params,
+                                     void * data, int * stop);
+
+// Returns -2 if there's a I/O error.
+int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_data);
+
 #ifdef __cplusplus
 }
 #endif
