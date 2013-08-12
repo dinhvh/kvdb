@@ -485,3 +485,64 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
     
     return 0;
 }
+
+int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_data)
+{
+    struct kvdb_table * table = db->kv_first_table;
+	struct kvdb_enumerate_cb_params cb_params;
+	int stop = 0;
+	
+    // Run through all tables.
+    while (table != NULL) {
+		struct kvdb_item * item = table->kv_items;
+		// Run through all buckets.
+		uint64_t count = ntoh64(*table->kv_maxcount);
+		while (count) {
+			uint64_t current_offset = ntoh64(item->kv_offset);
+			// Run through all chained blocks in the bucket.
+			while (current_offset != 0) {
+				char block_header_data[KV_BLOCK_KEY_BYTES_OFFSET + PRE_READ_KEY_SIZE];
+				ssize_t r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) current_offset);
+				if (r < 0) {
+					return -2;
+				}
+				char * p = block_header_data;
+				current_offset = bytes_to_h64(p);
+				p += 8+4+1; // ignore hash_value and log2_size
+				size_t current_key_size = (size_t) bytes_to_h64(p);
+				p += 8;
+				char * current_key = block_header_data + KV_BLOCK_KEY_BYTES_OFFSET;
+				char * allocated = NULL;
+				if (current_key_size > PRE_READ_KEY_SIZE) {
+					if (current_key_size <= MAX_ALLOCA_SIZE) {
+						current_key = alloca(current_key_size);
+					}
+					else {
+						allocated = malloc(current_key_size);
+						current_key = allocated;
+					}
+					r = pread(db->kv_fd, current_key, current_key_size, (off_t) (current_offset + KV_BLOCK_KEY_BYTES_OFFSET));
+					if (r < 0) {
+						if (allocated != NULL) {
+							free(allocated);
+						}
+						return -2;
+					}
+				}
+				cb_params.key = current_key;
+				cb_params.key_size = current_key_size;
+				callback(db, &cb_params, cb_data, &stop);
+				if (allocated != NULL) {
+					free(allocated);
+				}
+				if (stop) {
+					return 0;
+				}
+			}
+			item ++;
+			count --;
+		}
+		table = table->kv_next_table;
+	}
+	return 0;
+}

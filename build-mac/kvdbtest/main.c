@@ -12,6 +12,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void enumerate_keys_callback(kvdb * db, struct kvdb_enumerate_cb_params * params, void * data, int * stop) {
+	printf("key = %.*s\n", (int) params->key_size, params->key);
+}
+
 int main(void)
 {
     uuid_t key;
@@ -47,6 +51,8 @@ int main(void)
     else {
         fprintf(stderr, "not found\n");
     }
+	
+	r = kvdb_enumerate_keys(db, enumerate_keys_callback, NULL);
     
     kvdb_delete(db, "hoa", 3);
     r = kvdb_get(db, "hoa", 3, &data, &data_size);
