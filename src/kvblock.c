@@ -64,13 +64,13 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     uint64_t current_value_size = value_size;
     char * data;
     char * allocated = NULL;
-    if (8 + 4 + 8 + 8 + block_size > 4096) {
-        allocated = calloc(1, 8 + 4 + 8 + 8 + (size_t) block_size);
+    if (8 + 4 + 1 + 8 + 8 + block_size > 4096) {
+        allocated = calloc(1, 8 + 4 + 1 + 8 + 8 + (size_t) block_size);
         data = allocated;
     }
     else {
-        data = alloca(8 + 4 + 8 + 8 + (size_t) block_size);
-        bzero(data, 8 + 4 + 8 + 8 + (size_t) block_size);
+        data = alloca(8 + 4 + 1 + 8 + 8 + (size_t) block_size);
+        bzero(data, 8 + 4 + 1 + 8 + 8 + (size_t) block_size);
     }
     char * p = data;
     next_block_offset = hton64(next_block_offset);
@@ -91,13 +91,13 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     p += sizeof(current_value_size);
     memcpy(p, value, value_size);
     p += value_size;
-    pwrite(db->kv_fd, data, (size_t) (8 + 4 + 8 + 8 + block_size), offset);
+    pwrite(db->kv_fd, data, (size_t) (8 + 4 + 1 + 8 + 8 + block_size), offset);
     if (allocated != NULL) {
         free(allocated);
     }
     if (use_new_block) {
         uint64_t filesize = ntoh64(* db->kv_filesize);
-        filesize += 8 + 4 + 8 + 8 + block_size;
+        filesize += 8 + 4 + 1 + 8 + 8 + block_size;
         (* db->kv_filesize) = hton64(filesize);
     }
     

@@ -21,6 +21,7 @@
 		C66823A01763EA77000C603C /* kvdb.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823601763C472000C603C /* kvdb.c */; };
 		C66823A51763EA77000C603C /* kvprime.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823651763C472000C603C /* kvprime.c */; };
 		C66823A71763EA77000C603C /* kvtable.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823671763C472000C603C /* kvtable.c */; };
+		C676520B18FF9E61009619BE /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +53,16 @@
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 1;
+		};
+		C676520A18FF9E4E009619BE /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = include;
+			dstSubfolderSpec = 16;
+			files = (
+				C676520B18FF9E61009619BE /* kvdb.h in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -170,6 +181,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C66823571763C246000C603C /* Build configuration list for PBXNativeTarget "kvdb" */;
 			buildPhases = (
+				C676520A18FF9E4E009619BE /* CopyFiles */,
 				C668234F1763C246000C603C /* Sources */,
 				C66823501763C246000C603C /* Frameworks */,
 				C618377E1763F6C3009E00E4 /* CopyFiles */,
