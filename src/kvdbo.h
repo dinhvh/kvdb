@@ -28,6 +28,7 @@ int kvdbo_flush(kvdbo * db);
 
 // insert a key / value. if the key already exists, it's replaced.
 // Returns -2 if there's a I/O error.
+// Returns -3 if the key is invalid (starting with \0kvdbo).
 // kvdbo_flush() must be called to write on disk all pending changes.
 int kvdbo_set(kvdbo * db, const char * key, size_t key_size,
               const char * value, size_t value_size);

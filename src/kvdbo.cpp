@@ -53,7 +53,7 @@ static void kvdbo_assert_internal(const char * filename, unsigned int line,
     abort();
 }
 
-#define NODE_PREFIX "node"
+#define NODE_PREFIX "n"
 
 static int flush_pending_keys(kvdbo * db);
 static int write_master_node(kvdbo * db);
@@ -126,6 +126,9 @@ int kvdbo_flush(kvdbo * db)
 
 #pragma mark key insertion / deletion / retrieval.
 
+const char METAKEY_PREFIX[7] = "\0kvdbo";
+#define METAKEY_PREFIX_SIZE (sizeof(METAKEY_PREFIX) - 1)
+
 int kvdbo_set(kvdbo * db,
               const char * key,
               size_t key_size,
@@ -134,8 +137,13 @@ int kvdbo_set(kvdbo * db,
 {
     int r;
     
-    db->pending_keys_delete.erase(std::string(key, key_size));
-    db->pending_keys.insert(std::string(key, key_size));
+    std::string key_str(key, key_size);
+    if (key_str.find(std::string(METAKEY_PREFIX, METAKEY_PREFIX_SIZE)) == 0) {
+        // invalid key.
+        return -3;
+    }
+    db->pending_keys_delete.erase(key_str);
+    db->pending_keys.insert(key_str);
     r = kvdb_set(db->db, key, key_size, value, value_size);
     if (r != 0) {
         return r;
@@ -157,8 +165,9 @@ int kvdbo_get(kvdbo * db,
 
 int kvdbo_delete(kvdbo * db, const char* key, size_t key_size)
 {
-    db->pending_keys.erase(std::string(key, key_size));
-    db->pending_keys_delete.insert(std::string(key, key_size));
+    std::string key_str(key, key_size);
+    db->pending_keys.erase(key_str);
+    db->pending_keys_delete.insert(key_str);
     return kvdb_delete(db->db, key, key_size);
 }
 
@@ -281,6 +290,7 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
     
     // load all keys of the node in memory.
     std::string node_key;
+    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
     uint64_t identifier = hton64(node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
@@ -301,7 +311,7 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
 
 #pragma mark master node reading / writing.
 
-#define MASTER_NODE_KEY "master_node"
+#define MASTER_NODE_KEY "m"
 
 static int write_master_node(kvdbo * db)
 {
@@ -326,6 +336,7 @@ static int write_master_node(kvdbo * db)
         buffer.push_back(0);
     }
     std::string master_node_key;
+    master_node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     master_node_key.append(MASTER_NODE_KEY, strlen(MASTER_NODE_KEY));
     int r = kvdb_set(db->db, master_node_key.c_str(), master_node_key.length(),
                      buffer.c_str(), buffer.length());
@@ -339,6 +350,7 @@ static int read_master_node(kvdbo * db)
     uint64_t max_node_id = 0;
     
     std::string master_node_key;
+    master_node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     master_node_key.append(MASTER_NODE_KEY, strlen(MASTER_NODE_KEY));
     int r = kvdb_get(db->db, master_node_key.c_str(), master_node_key.length(),
                      &value, &size);
@@ -577,6 +589,7 @@ static int load_node(struct modified_node * node, unsigned int node_index)
 static int load_from_node_id(struct modified_node * node, uint64_t node_id)
 {
     std::string node_key;
+    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
     uint64_t identifier = hton64(node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
@@ -598,6 +611,7 @@ static int load_from_node_id(struct modified_node * node, uint64_t node_id)
 static int remove_node_id(kvdbo * db, uint64_t node_id)
 {
     std::string node_key;
+    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
     uint64_t identifier = hton64(node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
@@ -717,6 +731,7 @@ static int write_single_loaded_node(struct modified_node * node)
     std::string value;
     serialize_words_set(value, node->keys);
     std::string node_key;
+    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
     uint64_t identifier = hton64(node->node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
