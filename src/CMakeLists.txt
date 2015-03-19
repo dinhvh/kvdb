@@ -24,4 +24,5 @@ add_library (kvdb
     kvdb.c
     kvprime.c
     kvtable.c
+    kvdbo.cpp
 )

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BD1E7C841AAA47DD0030673D /* kvdbo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD1E7C821AAA47DD0030673D /* kvdbo.cpp */; };
+		BD520F301ABAB24E00681B8B /* kvdbo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1E7C831AAA47DD0030673D /* kvdbo.h */; };
 		C618377C1763F6B8009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C618377F1763F6CC009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C668236A1763C472000C603C /* kvassert.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235B1763C472000C603C /* kvassert.c */; };
@@ -42,6 +44,7 @@
 			dstSubfolderSpec = 16;
 			files = (
 				C618377F1763F6CC009E00E4 /* kvdb.h in CopyFiles */,
+				BD520F301ABAB24E00681B8B /* kvdbo.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +70,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BD1E7C821AAA47DD0030673D /* kvdbo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kvdbo.cpp; sourceTree = "<group>"; };
+		BD1E7C831AAA47DD0030673D /* kvdbo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvdbo.h; sourceTree = "<group>"; };
 		C66823531763C246000C603C /* libkvdb.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkvdb.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		C668235B1763C472000C603C /* kvassert.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvassert.c; sourceTree = "<group>"; };
 		C668235C1763C472000C603C /* kvassert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvassert.h; sourceTree = "<group>"; };
@@ -138,6 +143,8 @@
 		C668235A1763C472000C603C /* src */ = {
 			isa = PBXGroup;
 			children = (
+				BD1E7C821AAA47DD0030673D /* kvdbo.cpp */,
+				BD1E7C831AAA47DD0030673D /* kvdbo.h */,
 				C668235B1763C472000C603C /* kvassert.c */,
 				C668235C1763C472000C603C /* kvassert.h */,
 				C668235D1763C472000C603C /* kvblock.c */,
@@ -262,6 +269,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BD1E7C841AAA47DD0030673D /* kvdbo.cpp in Sources */,
 				C668236A1763C472000C603C /* kvassert.c in Sources */,
 				C668236C1763C472000C603C /* kvblock.c in Sources */,
 				C668236F1763C472000C603C /* kvdb.c in Sources */,

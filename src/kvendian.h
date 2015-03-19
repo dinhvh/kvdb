@@ -9,6 +9,8 @@
 #ifndef kvdb_kvendian_h
 #define kvdb_kvendian_h
 
+#include <inttypes.h>
+
 // Convert a 64 bit value to network byte order.
 static inline uint64_t hton64(uint64_t val)
 {

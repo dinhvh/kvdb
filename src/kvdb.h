@@ -8,18 +8,27 @@
 extern "C" {
 #endif
 
+// kvdb is a key-value database.
+
 typedef struct kvdb kvdb;
 
+// creates a kvdb.
 kvdb * kvdb_new(const char * filename);
+
+// destroy a kvdb.
 void kvdb_free(kvdb * db);
 
+// opens a kvdb.
 int kvdb_open(kvdb * db);
+
+// closes a kvdb.
 void kvdb_close(kvdb * db);
 
+// insert a key / value in the database.
 // Returns -2 if there's a I/O error.
 int kvdb_set(kvdb * db, const char * key, size_t key_size,
              const char * value, size_t value_size);
-    
+
 // result stored in p_value should be released using free().
 // Returns -1 if item is not found.
 // Returns -2 if there's a I/O error.
