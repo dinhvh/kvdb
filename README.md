@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
 kvdbo
 =====
 
-A Lightweight iteratable Key-Value Database.
+A Lightweight ordered Key-Value Database.
 
 - Use only one file
 - Low memory usage
