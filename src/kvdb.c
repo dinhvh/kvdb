@@ -390,12 +390,15 @@ static void delete_key_callback(kvdb * db, struct find_key_cb_params * params,
         uint64_t offset_to_write = hton64(params->next_offset);
         write_count = pwrite(db->kv_fd, &offset_to_write, sizeof(offset_to_write), params->previous_offset);
         if (write_count < 0) {
+            deletekeyparams->result = -2;
             return;
         }
     }
     r = kv_block_recycle(db, params->current_offset);
-    if (r < 0)
+    if (r < 0) {
+        deletekeyparams->result = -2;
         return;
+    }
     
     * params->table_count = hton64(ntoh64(* params->table_count) - 1);
     deletekeyparams->result = 0;
@@ -442,6 +445,7 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
     r = pread(db->kv_fd, &value_size, sizeof(value_size),
               params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
     if (r < 0) {
+        readparams->result = -2;
         return;
     }
     
@@ -518,6 +522,7 @@ static void append_value_callback(kvdb * db, struct find_key_cb_params * params,
     r = pread(db->kv_fd, &value_size, sizeof(value_size),
               params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
     if (r < 0) {
+        appendparams->result = -2;
         return;
     }
     
@@ -526,6 +531,14 @@ static void append_value_callback(kvdb * db, struct find_key_cb_params * params,
     size_t free_size = (1 << params->log2_size) - (8 + 4 + 1 + 8 + 8 + value_size + params->key_size);
     if (appendparams->append_size > free_size) {
         appendparams->result = -4;
+        return;
+    }
+    
+    uint64_t updated_value_size = value_size + appendparams->append_size;
+    updated_value_size = hton64(updated_value_size);
+    r = pwrite(db->kv_fd, &updated_value_size, sizeof(updated_value_size),
+              params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
+    if (r < 0) {
         return;
     }
     
