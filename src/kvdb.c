@@ -354,6 +354,7 @@ static int find_key(kvdb * db, const char * key, size_t key_size,
             params.next_offset = next_offset;
             params.item = item;
             params.table_count = table->kv_count;
+            params.log2_size = log2_size;
             
             callback(db, &params, cb_data);
             
@@ -428,6 +429,7 @@ struct read_value_params {
     char * value;
     int result;
     int found;
+    size_t free_size;
 };
 
 static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
@@ -450,16 +452,24 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
     r = pread(db->kv_fd, readparams->value, (size_t) value_size,
               params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8);
     if (r < 0) {
+        readparams->result = -2;
         free(readparams->value);
         return;
     }
     
     readparams->result = 0;
     readparams->found = 1;
+    readparams->free_size = (1 << params->log2_size) - (value_size + params->key_size);
 }
 
 int kvdb_get(kvdb * db, const char * key, size_t key_size,
              char ** p_value, size_t * p_value_size)
+{
+    return kvdb_get2(db, key, key_size, p_value, p_value_size, NULL);
+}
+
+int kvdb_get2(kvdb * db, const char * key, size_t key_size,
+              char ** p_value, size_t * p_value_size, size_t * p_free_size)
 {
     int r;
     struct read_value_params data;
@@ -468,7 +478,8 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
     data.value = NULL;
     data.result = -1;
     data.found = 0;
-    
+    data.free_size = 0;
+
     r = find_key(db, key, key_size, read_value_callback, &data);
     if (r < 0) {
         return -2;
@@ -480,8 +491,76 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
         return -1;
     }
     
+    if (p_free_size != NULL) {
+        * p_free_size = data.free_size;
+    }
+    
     * p_value = data.value;
     * p_value_size = (size_t) data.value_size;
+    
+    return 0;
+}
+
+struct append_value_params {
+    uint64_t append_size;
+    const char * append_data;
+    int result;
+    int found;
+};
+
+static void append_value_callback(kvdb * db, struct find_key_cb_params * params,
+                                  void * data)
+{
+    struct append_value_params * appendparams = data;
+    ssize_t r;
+    
+    uint64_t value_size;
+    r = pread(db->kv_fd, &value_size, sizeof(value_size),
+              params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
+    if (r < 0) {
+        return;
+    }
+    
+    value_size = ntoh64(value_size);
+    
+    size_t free_size = (1 << params->log2_size) - (8 + 4 + 1 + 8 + 8 + value_size + params->key_size);
+    if (appendparams->append_size > free_size) {
+        appendparams->result = -4;
+        return;
+    }
+    
+    r = pwrite(db->kv_fd, appendparams->append_data, appendparams->append_size,
+               params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8 + value_size);
+    if (r < 0) {
+        appendparams->result = -2;
+        return;
+    }
+    
+    appendparams->result = 0;
+    appendparams->found = 1;
+}
+
+int kvdb_append(kvdb * db, const char * key, size_t key_size,
+                const char * value, size_t value_size)
+{
+    int r;
+    struct append_value_params data;
+    
+    data.append_size = value_size;
+    data.append_data = value;
+    data.result = -1;
+    data.found = 0;
+    
+    r = find_key(db, key, key_size, append_value_callback, &data);
+    if (r < 0) {
+        return -2;
+    }
+    if (data.result < 0) {
+        return data.result;
+    }
+    if (!data.found) {
+        return -1;
+    }
     
     return 0;
 }

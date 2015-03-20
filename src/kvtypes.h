@@ -119,6 +119,7 @@ struct find_key_cb_params {
     uint64_t next_offset;
     struct kvdb_item * item;
     uint64_t * table_count;
+    size_t log2_size;
 };
 
 typedef void findkey_callback(kvdb * db, struct find_key_cb_params * params,
