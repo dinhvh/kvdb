@@ -30,7 +30,7 @@ static inline uint64_t block_size_round_up(uint64_t value)
 static inline unsigned int log2_round_up(uint64_t value)
 {
     uint64_t power = 1;
-    unsigned int log2_value = 1;
+    unsigned int log2_value = 0;
     while (power < value) {
         power <<= 1;
         log2_value ++;
