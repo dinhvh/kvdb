@@ -29,25 +29,20 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
 
 struct sfts {
     kvdbo * sfts_db;
-    std::map<std::string, std::string> * sfts_buffer;
-    std::set<std::string> * sfts_buffer_dirty;
-    std::set<std::string> * sfts_deleted;
+    std::map<std::string, std::string> sfts_buffer;
+    std::set<std::string> sfts_buffer_dirty;
+    std::set<std::string> sfts_deleted;
 };
 
 sfts * sfts_new(void)
 {
-    sfts * result = (sfts *) calloc(1, sizeof(* result));
-    result->sfts_buffer = new std::map<std::string, std::string>();
-    result->sfts_buffer_dirty = new std::set<std::string>();
-    result->sfts_deleted = new std::set<std::string>();
+    sfts * result = new sfts;
+    result->sfts_db = NULL;
     return result;
 }
 
 void sfts_free(sfts * index)
 {
-    delete index->sfts_buffer;
-    delete index->sfts_buffer_dirty;
-    delete index->sfts_deleted;
     free(index);
 }
 
@@ -519,21 +514,21 @@ int sfts_u_search(sfts * index, const UChar * utoken, sfts_search_kind kind,
 
 static int db_put(sfts * index, std::string & key, std::string & value)
 {
-    index->sfts_deleted->erase(key);
-    (* index->sfts_buffer)[key] = value;
-    index->sfts_buffer_dirty->insert(key);
+    index->sfts_deleted.erase(key);
+    index->sfts_buffer[key] = value;
+    index->sfts_buffer_dirty.insert(key);
     
     return 0;
 }
 
 static int db_get(sfts * index, std::string & key, std::string * p_value)
 {
-    if (index->sfts_deleted->find(key) != index->sfts_deleted->end()) {
+    if (index->sfts_deleted.find(key) != index->sfts_deleted.end()) {
         return -1;
     }
     
-    if (index->sfts_buffer->find(key) != index->sfts_buffer->end()) {
-        * p_value = (* index->sfts_buffer)[key];
+    if (index->sfts_buffer.find(key) != index->sfts_buffer.end()) {
+        * p_value = index->sfts_buffer[key];
         return 0;
     }
     
@@ -544,35 +539,35 @@ static int db_get(sfts * index, std::string & key, std::string * p_value)
         return r;
     }
     * p_value = std::string(value, value_size);
-    (* index->sfts_buffer)[key] = * p_value;
+    index->sfts_buffer[key] = * p_value;
     return 0;
 }
 
 static int db_delete(sfts * index, std::string & key)
 {
-    index->sfts_deleted->insert(key);
-    index->sfts_buffer_dirty->erase(key);
-    index->sfts_buffer->erase(key);
+    index->sfts_deleted.insert(key);
+    index->sfts_buffer_dirty.erase(key);
+    index->sfts_buffer.erase(key);
     return 0;
 }
 
 static int db_flush(sfts * index)
 {
-    if ((index->sfts_buffer_dirty->size() == 0) && (index->sfts_deleted->size() == 0)) {
+    if ((index->sfts_buffer_dirty.size() == 0) && (index->sfts_deleted.size() == 0)) {
         return 0;
     }
-    for(std::set<std::string>::iterator set_iterator = index->sfts_buffer_dirty->begin() ; set_iterator != index->sfts_buffer_dirty->end() ; ++ set_iterator) {
+    for(std::set<std::string>::iterator set_iterator = index->sfts_buffer_dirty.begin() ; set_iterator != index->sfts_buffer_dirty.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
-        std::string value = (* index->sfts_buffer)[key];
+        std::string value = index->sfts_buffer[key];
         kvdbo_set(index->sfts_db, key.c_str(), key.length(), value.c_str(), value.length());
     }
-    for(std::set<std::string>::iterator set_iterator = index->sfts_deleted->begin() ; set_iterator != index->sfts_deleted->end() ; ++ set_iterator) {
+    for(std::set<std::string>::iterator set_iterator = index->sfts_deleted.begin() ; set_iterator != index->sfts_deleted.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
         kvdbo_delete(index->sfts_db, key.c_str(), key.length());
     }
     kvdbo_flush(index->sfts_db);
-    index->sfts_buffer->clear();
-    index->sfts_buffer_dirty->clear();
-    index->sfts_deleted->clear();
+    index->sfts_buffer.clear();
+    index->sfts_buffer_dirty.clear();
+    index->sfts_deleted.clear();
     return 0;
 }
