@@ -540,6 +540,7 @@ static int db_get(sfts * index, std::string & key, std::string * p_value)
     }
     * p_value = std::string(value, value_size);
     index->sfts_buffer[key] = * p_value;
+    free(value);
     return 0;
 }
 
