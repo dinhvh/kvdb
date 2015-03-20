@@ -313,21 +313,6 @@ static int write_master_node(kvdbo * db)
     for(uint64_t i = 0 ; i < db->nodes_keys_count.size() ; i ++) {
         kv_encode_uint64(buffer, db->nodes_keys_count[i]);
     }
-#if 0
-    uint64_t count = hton64(db->nodes_ids.size());
-    buffer.append((char *) &count, sizeof(count));
-    for(uint64_t i = 0 ; i < db->nodes_ids.size() ; i ++) {
-        // write node id.
-        uint64_t value = hton64(db->nodes_ids[i]);
-        buffer.append((char *) &value, sizeof(value));
-    }
-    for(uint64_t i = 0 ; i < db->nodes_keys_count.size() ; i ++) {
-        // write number of keys in the node.
-        char value32[4];
-        h32_to_bytes(value32, db->nodes_keys_count[i]);
-        buffer.append(value32, sizeof(value32));
-    }
-#endif
     for(uint64_t i = 0 ; i < db->nodes_first_keys.size() ; i ++) {
         // write first key of the node.
         std::string key = db->nodes_first_keys[i];
@@ -344,8 +329,6 @@ static int write_master_node(kvdbo * db)
 
 static int read_master_node(kvdbo * db)
 {
-    //void kv_encode_uint64(std::string & buffer, uint64_t value);
-    //size_t kv_decode_uint64(std::string & buffer, size_t position, uint64_t * p_value);
     char * value = NULL;
     size_t size = 0;
     uint64_t max_node_id = 0;
@@ -363,24 +346,6 @@ static int read_master_node(kvdbo * db)
     }
     std::string buffer(value, size);
     db->nodes_ids.clear();
-#if 0
-    uint64_t count = ntoh64(((uint64_t *) value)[0]);
-    char * p = value + sizeof(count);
-    for(uint64_t i = 0 ; i < count ; i ++) {
-        uint64_t node_id = ntoh64(* (uint64_t *) p);
-        db->nodes_ids.push_back(node_id);
-        if (node_id > max_node_id) {
-            max_node_id = node_id;
-        }
-        p += sizeof(node_id);
-    }
-    for(uint64_t i = 0 ; i < count ; i ++) {
-        uint32_t keys_count = bytes_to_h32(p);
-        db->nodes_keys_count.push_back(keys_count);
-        p += sizeof(keys_count);
-    }
-#endif
-    //size_t kv_decode_uint64(std::string & buffer, size_t position, uint64_t * p_value);
     uint64_t count = 0;
     size_t position = 0;
     position = kv_decode_uint64(buffer, position, &count);
