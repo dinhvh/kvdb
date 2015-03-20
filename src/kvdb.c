@@ -24,7 +24,7 @@
 #include "kvblock.h"
 
 #define MARKER "KVDB"
-#define VERSION 1
+#define VERSION 2
 
 static int kvdb_debug = 0;
 
