@@ -155,3 +155,59 @@ int main(int argc, char ** argv)
 }
 ```
 
+sfts
+====
+
+A Simple Full Text Search.
+
+- Use only one file
+- Low memory usage
+- Good performance
+- Unicode support
+
+Example:
+
+```c
+#include <stdio.h>
+#include <kvdb/sfts.h>
+
+int main(int argc, char ** argv)
+{
+  sfts * indexer;
+  int r;
+  uint64_t * result;
+  size_t result_count;
+
+  // Opens the index.
+  indexer = sfts_new();
+  sfts_open(indexer, "index.sfts");
+
+  // Adds data to the index.
+  sfts_set(indexer, 0, "George Washington");
+  sfts_set(indexer, 1, "John Adams");
+  sfts_set(indexer, 2, "Thomas Jefferson");
+  sfts_set(indexer, 3, "George Michael");
+  sfts_set(indexer, 4, "George Méliès");
+
+  // Search "geor".
+  print("searching geor");
+  sfts_search(indexer, "geor", sfts_search_kind_suffix, &result, &result_count);
+  for(size_t i = 0 ; i < result_count ; i ++) {
+    printf("found: %i\n", result[i]);
+  }
+  // returns 0, 3 and 4.
+  free(result);
+
+  // Search "mel".
+  print("searching mel");
+  sfts_search(indexer, "mel", sfts_search_kind_suffix, &result, &result_count);
+  for(size_t i = 0 ; i < result_count ; i ++) {
+    printf("found: %i\n", result[i]);
+  }
+  // return 4
+  free(result);
+
+  sfts_close(indexer);
+  sfts_free(indexer);
+}
+```

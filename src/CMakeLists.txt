@@ -1,4 +1,10 @@
 #set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_C_FLAGS "-g -O2")
+IF(APPLE)
+  set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ -g -O2")
+ELSE()
+  set(CMAKE_CXX_FLAGS "-std=gnu++0x")
+ENDIF()
 
 file(GLOB_RECURSE
     source_files
@@ -14,6 +20,8 @@ SET_SOURCE_FILES_PROPERTIES(
 
 file(COPY
 kvdb.h
+kvdbo.h
+sfts.h
 DESTINATION
 ${CMAKE_CURRENT_BINARY_DIR}/include/kvdb
 )
@@ -25,4 +33,8 @@ add_library (kvdb
     kvprime.c
     kvtable.c
     kvdbo.cpp
+    sfts.cpp
+    kvunicode.c
+    kvserialization.cpp
+    ConvertUTF.c
 )

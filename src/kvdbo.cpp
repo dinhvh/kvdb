@@ -2,6 +2,8 @@
 
 #include "kvdb.h"
 #include "kvendian.h"
+#include "kvassert.h"
+#include "kvserialization.h"
 
 #include <set>
 #include <string>
@@ -40,18 +42,6 @@ struct kvdbo_iterator {
     // current key index in the node.
     int key_index;
 };
-
-#define kvdbo_assert(cond) kvdbo_assert_internal(__FILE__, __LINE__, cond, #cond)
-
-static void kvdbo_assert_internal(const char * filename, unsigned int line,
-                                  int cond, const char * condString)
-{
-    if (cond) {
-        return;
-    }
-    fprintf(stderr, "assert (%s:%u) %s\n", filename, line, condString);
-    abort();
-}
 
 #define NODE_PREFIX "n"
 
@@ -193,7 +183,7 @@ void kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
     }
     uint64_t node_id = iterator->db->nodes_ids[0];
     int r = iterator_load_node(iterator, node_id);
-    kvdbo_assert(r == 0);
+    KVDBAssert(r == 0);
     iterator->node_index = 0;
     iterator->key_index = 0;
 }
@@ -205,7 +195,7 @@ void kvdbo_iterator_seek_last(kvdbo_iterator * iterator)
     }
     uint64_t node_id = iterator->db->nodes_ids[iterator->db->nodes_ids.size() - 1];
     int r = iterator_load_node(iterator, node_id);
-    kvdbo_assert(r == 0);
+    KVDBAssert(r == 0);
     iterator->node_index = (unsigned int) (iterator->db->nodes_ids.size() - 1);
     iterator->key_index = (unsigned int) (iterator->keys.size() - 1);
 }
@@ -221,7 +211,7 @@ void kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
     unsigned int idx = find_node(iterator->db, key_string);
     uint64_t node_id = iterator->db->nodes_ids[idx];
     int r = iterator_load_node(iterator, node_id);
-    kvdbo_assert(r == 0);
+    KVDBAssert(r == 0);
     iterator->node_index = idx;
     iterator->key_index = find_key(iterator, key_string);
 }
@@ -242,7 +232,7 @@ void kvdbo_iterator_next(kvdbo_iterator * iterator)
     
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
     int r = iterator_load_node(iterator, node_id);
-    kvdbo_assert(r == 0);
+    KVDBAssert(r == 0);
     iterator->key_index = 0;
 }
 
@@ -262,7 +252,7 @@ void kvdbo_iterator_previous(kvdbo_iterator * iterator)
     
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
     int r= iterator_load_node(iterator, node_id);
-    kvdbo_assert(r == 0);
+    KVDBAssert(r == 0);
     iterator->key_index = (unsigned int) (iterator->keys.size() - 1);
 }
 
@@ -316,6 +306,14 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
 static int write_master_node(kvdbo * db)
 {
     std::string buffer;
+    kv_encode_uint64(buffer, db->nodes_ids.size());
+    for(uint64_t i = 0 ; i < db->nodes_ids.size() ; i ++) {
+        kv_encode_uint64(buffer, db->nodes_ids[i]);
+    }
+    for(uint64_t i = 0 ; i < db->nodes_keys_count.size() ; i ++) {
+        kv_encode_uint64(buffer, db->nodes_keys_count[i]);
+    }
+#if 0
     uint64_t count = hton64(db->nodes_ids.size());
     buffer.append((char *) &count, sizeof(count));
     for(uint64_t i = 0 ; i < db->nodes_ids.size() ; i ++) {
@@ -329,6 +327,7 @@ static int write_master_node(kvdbo * db)
         h32_to_bytes(value32, db->nodes_keys_count[i]);
         buffer.append(value32, sizeof(value32));
     }
+#endif
     for(uint64_t i = 0 ; i < db->nodes_first_keys.size() ; i ++) {
         // write first key of the node.
         std::string key = db->nodes_first_keys[i];
@@ -345,6 +344,8 @@ static int write_master_node(kvdbo * db)
 
 static int read_master_node(kvdbo * db)
 {
+    //void kv_encode_uint64(std::string & buffer, uint64_t value);
+    //size_t kv_decode_uint64(std::string & buffer, size_t position, uint64_t * p_value);
     char * value = NULL;
     size_t size = 0;
     uint64_t max_node_id = 0;
@@ -360,7 +361,9 @@ static int read_master_node(kvdbo * db)
     if (r == -2) {
         return -2;
     }
+    std::string buffer(value, size);
     db->nodes_ids.clear();
+#if 0
     uint64_t count = ntoh64(((uint64_t *) value)[0]);
     char * p = value + sizeof(count);
     for(uint64_t i = 0 ; i < count ; i ++) {
@@ -376,8 +379,27 @@ static int read_master_node(kvdbo * db)
         db->nodes_keys_count.push_back(keys_count);
         p += sizeof(keys_count);
     }
-    size_t remaining = size - (p - value);
-    unserialize_words_list(db->nodes_first_keys, p, remaining);
+#endif
+    //size_t kv_decode_uint64(std::string & buffer, size_t position, uint64_t * p_value);
+    uint64_t count = 0;
+    size_t position = 0;
+    position = kv_decode_uint64(buffer, position, &count);
+    for(uint64_t i = 0 ; i < count ; i ++) {
+        uint64_t node_id = 0;
+        position = kv_decode_uint64(buffer, position, &node_id);
+        db->nodes_ids.push_back(node_id);
+        if (node_id > max_node_id) {
+            max_node_id = node_id;
+        }
+    }
+    for(uint64_t i = 0 ; i < count ; i ++) {
+        uint64_t keys_count = 0;
+        position = kv_decode_uint64(buffer, position, &keys_count);
+        db->nodes_keys_count.push_back((uint32_t) keys_count);
+    }
+    //size_t remaining = size - (p - value);
+    size_t remaining = size - position;
+    unserialize_words_list(db->nodes_first_keys, value + position, remaining);
     return 0;
 }
 

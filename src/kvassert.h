@@ -9,8 +9,16 @@
 #ifndef KV_ASSERT_H
 #define KV_ASSERT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define KVDBAssert(cond) assertInternal(__FILE__, __LINE__, cond, #cond)
 
 void assertInternal(const char * filename, unsigned int line, int cond, const char * condString);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
