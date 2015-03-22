@@ -549,7 +549,6 @@ static int flush_pending_keys(kvdbo * db)
     write_loaded_node(&current_node);
     db->pending_keys.clear();
     db->pending_keys_delete.clear();
-    //delete current_node.keys;
     
     return 0;
 }
