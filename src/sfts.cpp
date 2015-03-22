@@ -85,11 +85,11 @@ int sfts_set(sfts * index, uint64_t doc, const char * text)
 
 int sfts_set2(sfts * index, uint64_t doc, const char ** text, int count)
 {
-    UChar ** utext = (UChar ** ) malloc(count * sizeof(* utext));
+    UChar ** utext = (UChar **) malloc(count * sizeof(* utext));
     for(int i = 0 ; i < count ; i ++) {
         utext[i] = kv_from_utf8(text[i]);
     }
-    int result = sfts_u_set2(index, doc, utext, count);
+    int result = sfts_u_set2(index, doc, (const UChar **) utext, count);
     for(int i = 0 ; i < count ; i ++) {
         free((void *) utext[i]);
     }
@@ -110,7 +110,7 @@ int sfts_u_set(sfts * index, uint64_t doc, const UChar * utext)
     return 0;
 }
 
-int sfts_u_set2(sfts * index, uint64_t doc, UChar * const * utext, int count)
+int sfts_u_set2(sfts * index, uint64_t doc, const UChar ** utext, int count)
 {
     int r = sfts_remove(index, doc);
     if (r < 0) {

@@ -49,10 +49,10 @@ int sfts_u_set(sfts * index, uint64_t doc, const UChar * utext);
 
 // Adds a UTF-8 document to the indexer.
 // `doc`: document identifier (numerical identifier in a 64-bits range)
-int sfts_set2(sfts * index, uint64_t doc, char * const * text, int count);
+int sfts_set2(sfts * index, uint64_t doc, const char ** text, int count);
 
 // Adds an unicode document to the indexer.
-int sfts_u_set2(sfts * index, uint64_t doc, UChar * const * utext, int count);
+int sfts_u_set2(sfts * index, uint64_t doc, const UChar ** utext, int count);
 
 // Removes a document from the indexer.
 int sfts_remove(sfts * index, uint64_t doc);
