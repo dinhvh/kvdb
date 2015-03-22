@@ -110,7 +110,7 @@ static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static int s_initialized = 0;
 static int pthread_once_t s_once = PTHREAD_ONCE_INIT;
 
-void kv_unicode_init(void)
+static void kv_unicode_init(void)
 {
     pthread_mutex_lock(&s_lock);
     if (!s_initialized) {
@@ -130,17 +130,9 @@ void kv_unicode_init(void)
     pthread_mutex_unlock(&s_lock);
 }
 
-void kv_unicode_deinit(void)
+static void kv_unicode_deinit(void)
 {
     utrans_close(s_trans);
-}
-#else
-void kv_unicode_init(void)
-{
-}
-
-void kv_unicode_deinit(void)
-{
 }
 #endif
 
@@ -191,6 +183,28 @@ char * kv_transliterate(const UChar * text, int length)
         length = kv_u_get_length(text);
     }
     
+    int is_ascii = 1;
+    const UChar * p = text;
+    for(int i = 0 ; i < length ; i ++) {
+        if ((* p < 32) || (* p >= 127)) {
+        //if (!isalnum(* p)) {
+            is_ascii = 0;
+            break;
+        }
+        p ++;
+    }
+    
+    if (is_ascii) {
+        char * result = malloc(length + 1);
+        char * q = result;
+        for(int i = 0 ; i < length ; i ++) {
+            * q = tolower(text[i]);
+            q ++;
+        }
+        * q = 0;
+        return result;
+    }
+    
     CFMutableStringRef cfStr = CFStringCreateMutable(NULL, 0);
     CFStringAppendCharacters(cfStr, (const UniChar *) text, length);
     CFStringTransform(cfStr, NULL, CFSTR("Any-Latin; NFD; Lower; [:nonspacing mark:] remove; nfc"), false);
@@ -205,7 +219,7 @@ char * kv_transliterate(const UChar * text, int length)
         length = u_strlen(text);
     }
     
-    pthread_once(&s_once, transliterate_init);
+    pthread_once(&s_once, kv_unicode_init);
     
     XReplaceable xrep;
     InitXReplaceable(&xrep, text, length);

@@ -29,9 +29,6 @@ typedef uint16_t UChar;
 extern "C" {
 #endif
 
-void kv_unicode_init(void);
-void kv_unicode_deinit(void);
-
 unsigned int kv_u_get_length(const UChar * word);
 UChar * kv_from_utf8(const char * word);
 char * kv_to_utf8(const UChar * word);
