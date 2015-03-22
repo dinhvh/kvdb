@@ -13,6 +13,14 @@
 		BD520F3A1ABB548D00681B8B /* kvserialization.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD520F331ABB548D00681B8B /* kvserialization.cpp */; };
 		BD520F3B1ABB548D00681B8B /* kvunicode.c in Sources */ = {isa = PBXBuildFile; fileRef = BD520F351ABB548D00681B8B /* kvunicode.c */; };
 		BD520F3C1ABB548D00681B8B /* sfts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD520F371ABB548D00681B8B /* sfts.cpp */; };
+		BDB104621ABE82B000FD6FF6 /* KVIndexer.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104611ABE82B000FD6FF6 /* KVIndexer.m */; };
+		BDB104691ABE82CB00FD6FF6 /* KVDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */; };
+		BDB1046C1ABE82D900FD6FF6 /* KVOrderedDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */; };
+		BDB1046D1ABE90BC00FD6FF6 /* sfts.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD520F381ABB548D00681B8B /* sfts.h */; };
+		BDB1046E1ABE90BF00FD6FF6 /* kvdbo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1E7C831AAA47DD0030673D /* kvdbo.h */; };
+		BDB1046F1ABE90C300FD6FF6 /* KVIndexer.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104601ABE82B000FD6FF6 /* KVIndexer.h */; };
+		BDB104701ABE90C700FD6FF6 /* KVDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */; };
+		BDB104711ABE90C900FD6FF6 /* KVOrderedDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */; };
 		C618377C1763F6B8009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C618377F1763F6CC009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C668236A1763C472000C603C /* kvassert.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235B1763C472000C603C /* kvassert.c */; };
@@ -68,6 +76,11 @@
 			dstSubfolderSpec = 16;
 			files = (
 				C676520B18FF9E61009619BE /* kvdb.h in CopyFiles */,
+				BDB1046D1ABE90BC00FD6FF6 /* sfts.h in CopyFiles */,
+				BDB1046E1ABE90BF00FD6FF6 /* kvdbo.h in CopyFiles */,
+				BDB1046F1ABE90C300FD6FF6 /* KVIndexer.h in CopyFiles */,
+				BDB104701ABE90C700FD6FF6 /* KVDatabase.h in CopyFiles */,
+				BDB104711ABE90C900FD6FF6 /* KVOrderedDatabase.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +98,12 @@
 		BD520F371ABB548D00681B8B /* sfts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sfts.cpp; sourceTree = "<group>"; };
 		BD520F381ABB548D00681B8B /* sfts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sfts.h; sourceTree = "<group>"; };
 		BD520F3D1ABBE79C00681B8B /* ConvertUTFNamespace.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ConvertUTFNamespace.h; sourceTree = "<group>"; };
+		BDB104601ABE82B000FD6FF6 /* KVIndexer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KVIndexer.h; sourceTree = "<group>"; };
+		BDB104611ABE82B000FD6FF6 /* KVIndexer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KVIndexer.m; sourceTree = "<group>"; };
+		BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KVDatabase.h; sourceTree = "<group>"; };
+		BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KVDatabase.m; sourceTree = "<group>"; };
+		BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KVOrderedDatabase.h; sourceTree = "<group>"; };
+		BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KVOrderedDatabase.m; sourceTree = "<group>"; };
 		C66823531763C246000C603C /* libkvdb.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkvdb.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		C668235B1763C472000C603C /* kvassert.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvassert.c; sourceTree = "<group>"; };
 		C668235C1763C472000C603C /* kvassert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvassert.h; sourceTree = "<group>"; };
@@ -133,9 +152,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BDB1045D1ABE825800FD6FF6 /* objc */ = {
+			isa = PBXGroup;
+			children = (
+				BDB104601ABE82B000FD6FF6 /* KVIndexer.h */,
+				BDB104611ABE82B000FD6FF6 /* KVIndexer.m */,
+				BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */,
+				BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */,
+				BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */,
+				BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */,
+			);
+			name = objc;
+			path = ../objc;
+			sourceTree = "<group>";
+		};
 		C668234A1763C246000C603C = {
 			isa = PBXGroup;
 			children = (
+				BDB1045D1ABE825800FD6FF6 /* objc */,
 				C668235A1763C472000C603C /* src */,
 				C66823801763C48F000C603C /* kvdbtest */,
 				C668238E1763EA47000C603C /* Frameworks */,
@@ -291,11 +325,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BDB104691ABE82CB00FD6FF6 /* KVDatabase.m in Sources */,
 				BD1E7C841AAA47DD0030673D /* kvdbo.cpp in Sources */,
 				BD520F3B1ABB548D00681B8B /* kvunicode.c in Sources */,
 				C668236A1763C472000C603C /* kvassert.c in Sources */,
 				BD520F391ABB548D00681B8B /* ConvertUTF.c in Sources */,
 				BD520F3A1ABB548D00681B8B /* kvserialization.cpp in Sources */,
+				BDB1046C1ABE82D900FD6FF6 /* KVOrderedDatabase.m in Sources */,
+				BDB104621ABE82B000FD6FF6 /* KVIndexer.m in Sources */,
 				C668236C1763C472000C603C /* kvblock.c in Sources */,
 				C668236F1763C472000C603C /* kvdb.c in Sources */,
 				C66823741763C472000C603C /* kvprime.c in Sources */,
@@ -333,6 +370,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
@@ -362,6 +400,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
