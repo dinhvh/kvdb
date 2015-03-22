@@ -49,7 +49,7 @@ int kvdbo_delete(kvdbo * db, const char * key, size_t key_size);
 
 typedef struct kvdbo_iterator kvdbo_iterator;
 
-// create an iterator on the given kvdbo (order is lexicographic).
+// create an iterator on the given kvdbo (order is lexicographical).
 kvdbo_iterator * kvdbo_iterator_new(kvdbo * db);
 
 // destroy an iterator.

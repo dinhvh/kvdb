@@ -11,16 +11,32 @@ typedef enum {
 
 @property (nonatomic, copy, readonly) NSString *path;
 
+// Create a full text indexer.
 - (id) initWithPath:(NSString *)path;
 
+// Opens the indexer.
 - (BOOL) open;
+
+// Closes the indexer.
 - (void) close;
+
+// Write pending changes to disk.
 - (BOOL) flush;
 
+// Add a document to the indexer. string is the content to index.
+// the string will be tokenized.
+// The document is designated by an identifier docID.
 - (BOOL) setString:(NSString *)string forDocID:(uint64_t)docID;
+
+// Add a document to the indexer. strings is the result of a custom tokenizer.
+// It's the list of tokens to index.
+// The document is designated by an identifier docID.
 - (BOOL) setStrings:(NSArray * /* NSString */)strings forDocID:(uint64_t)docID;
+
+// Remove a document from the indexer.
 - (void) removeDocID:(uint64_t)docID;
 
+// Search a token. Returns a list of documents IDs.
 - (NSArray *) search:(NSString *)token kind:(KVIndexerSearchKind)kind;
 
 @end
