@@ -70,7 +70,7 @@ enum {
         [strings[i] getCharacters:buffer range:NSMakeRange(0, [strings[i] length])];
         buffer[[strings[i] length]] = 0;
     }
-    int r = sfts_u_set2(_db, docID, table, (int) [strings count]);
+    int r = sfts_u_set2(_db, docID, (const UChar **) table, (int) [strings count]);
     for(unsigned int i = 0 ; i < [strings count] ; i ++) {
         free(table[i]);
     }
