@@ -9,6 +9,8 @@
 
 #include <set>
 #include <map>
+#include <unordered_set>
+#include <unordered_map>
 
 #if __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -29,9 +31,9 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
 
 struct sfts {
     kvdbo * sfts_db;
-    std::map<std::string, std::string> sfts_buffer;
-    std::set<std::string> sfts_buffer_dirty;
-    std::set<std::string> sfts_deleted;
+    std::unordered_map<std::string, std::string> sfts_buffer;
+    std::unordered_set<std::string> sfts_buffer_dirty;
+    std::unordered_set<std::string> sfts_deleted;
 };
 
 sfts * sfts_new(void)
@@ -557,12 +559,12 @@ static int db_flush(sfts * index)
     if ((index->sfts_buffer_dirty.size() == 0) && (index->sfts_deleted.size() == 0)) {
         return 0;
     }
-    for(std::set<std::string>::iterator set_iterator = index->sfts_buffer_dirty.begin() ; set_iterator != index->sfts_buffer_dirty.end() ; ++ set_iterator) {
+    for(std::unordered_set<std::string>::iterator set_iterator = index->sfts_buffer_dirty.begin() ; set_iterator != index->sfts_buffer_dirty.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
         std::string value = index->sfts_buffer[key];
         kvdbo_set(index->sfts_db, key.c_str(), key.length(), value.c_str(), value.length());
     }
-    for(std::set<std::string>::iterator set_iterator = index->sfts_deleted.begin() ; set_iterator != index->sfts_deleted.end() ; ++ set_iterator) {
+    for(std::unordered_set<std::string>::iterator set_iterator = index->sfts_deleted.begin() ; set_iterator != index->sfts_deleted.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
         kvdbo_delete(index->sfts_db, key.c_str(), key.length());
     }
