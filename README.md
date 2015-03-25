@@ -37,3 +37,9 @@ A Simple Full Text Search.
 - Low memory usage
 - Good performance
 - Unicode support
+
+Examples
+========
+
+- [Examples for C](EXAMPLES.md)
+- [Examples for Objective-C](EXAMPLES.objc.md)

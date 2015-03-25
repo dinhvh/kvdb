@@ -191,7 +191,7 @@ int main(int argc, char ** argv)
 
   // Search "geor".
   print("searching geor");
-  sfts_search(indexer, "geor", sfts_search_kind_suffix, &result, &result_count);
+  sfts_search(indexer, "geor", sfts_search_kind_prefix, &result, &result_count);
   for(size_t i = 0 ; i < result_count ; i ++) {
     printf("found: %i\n", result[i]);
   }
@@ -200,7 +200,7 @@ int main(int argc, char ** argv)
 
   // Search "mel".
   print("searching mel");
-  sfts_search(indexer, "mel", sfts_search_kind_suffix, &result, &result_count);
+  sfts_search(indexer, "mel", sfts_search_kind_prefix, &result, &result_count);
   for(size_t i = 0 ; i < result_count ; i ++) {
     printf("found: %i\n", result[i]);
   }
