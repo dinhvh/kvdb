@@ -33,6 +33,8 @@ static int kvdb_debug = 0;
 static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size);
 static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
               char ** p_value, size_t * p_value_size, size_t * p_free_size);
+static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
+                     char ** p_value, size_t * p_value_size, size_t * p_free_size);
 
 kvdb * kvdb_new(const char * filename)
 {
@@ -527,8 +529,8 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
     return kvdb_get2(db, key, key_size, p_value, p_value_size, NULL);
 }
 
-int kvdb_get2(kvdb * db, const char * key, size_t key_size,
-              char ** p_value, size_t * p_value_size, size_t * p_free_size)
+static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
+                     char ** p_value, size_t * p_value_size, size_t * p_free_size)
 {
     if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
         return internal_kvdb_get2(db, key, key_size, p_value, p_value_size, p_free_size);
@@ -594,96 +596,6 @@ static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
     * p_value_size = (size_t) data.value_size;
     
     return 0;
-}
-
-struct append_value_params {
-    uint64_t append_size;
-    const char * append_data;
-    int result;
-    int found;
-};
-
-static void append_value_callback(kvdb * db, struct find_key_cb_params * params,
-                                  void * data)
-{
-    struct append_value_params * appendparams = data;
-    ssize_t r;
-    
-    uint64_t value_size;
-    r = pread(db->kv_fd, &value_size, sizeof(value_size),
-              params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
-    if (r < 0) {
-        appendparams->result = -2;
-        return;
-    }
-    
-    value_size = ntoh64(value_size);
-    
-    size_t free_size = (1 << params->log2_size) - (8 + 4 + 1 + 8 + 8 + value_size + params->key_size);
-    if (appendparams->append_size > free_size) {
-        appendparams->result = -4;
-        return;
-    }
-    
-    uint64_t updated_value_size = value_size + appendparams->append_size;
-    updated_value_size = hton64(updated_value_size);
-    r = pwrite(db->kv_fd, &updated_value_size, sizeof(updated_value_size),
-              params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
-    if (r < 0) {
-        return;
-    }
-    
-    r = pwrite(db->kv_fd, appendparams->append_data, appendparams->append_size,
-               params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8 + value_size);
-    if (r < 0) {
-        appendparams->result = -2;
-        return;
-    }
-    
-    appendparams->result = 0;
-    appendparams->found = 1;
-}
-
-int kvdb_append(kvdb * db, const char * key, size_t key_size,
-                const char * value, size_t value_size)
-{
-    if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
-        int r;
-        struct append_value_params data;
-    
-    
-        data.append_size = value_size;
-        data.append_data = value;
-        data.result = -1;
-        data.found = 0;
-    
-        r = find_key(db, key, key_size, append_value_callback, &data);
-        if (r < 0) {
-            return -2;
-        }
-        if (data.result < 0) {
-            return data.result;
-        }
-        if (!data.found) {
-            return -1;
-        }
-    
-        return 0;
-    }
-    else {
-        char * existing_value = NULL;
-        size_t existing_value_size = 0;
-        int r = kvdb_get(db, key, key_size, &existing_value, &existing_value_size);
-        if (r < 0) {
-            return r;
-        }
-        char * concatenated_value = malloc(existing_value_size + value_size);
-        memcpy(concatenated_value, existing_value, existing_value_size);
-        memcpy(concatenated_value + existing_value_size, value, value_size);
-        r = kvdb_set(db, key, key_size, concatenated_value, existing_value_size + value_size);
-        free(concatenated_value);
-        return r;
-    }
 }
 
 int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_data)

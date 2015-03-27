@@ -59,14 +59,6 @@ typedef void kvdb_enumerate_callback(kvdb * db,
 // Returns -2 if there's a I/O error.
 int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_data);
 
-
-// optimizations for sfts
-int kvdb_get2(kvdb * db, const char * key, size_t key_size,
-              char ** p_value, size_t * p_value_size, size_t * p_free_size);
-
-int kvdb_append(kvdb * db, const char * key, size_t key_size,
-                const char * value, size_t value_size);
-
 #ifdef __cplusplus
 }
 #endif
