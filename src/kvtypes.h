@@ -24,23 +24,29 @@
  firsttable: table data
  */
 
-#define KV_HEADER_SIZE (4 + 4 + 8 + 8 + 64 * 8)
+#define KV_HEADER_SIZE (4 + 4 + 8 + 1 + 8 + 64 * 8)
 #define KV_HEADER_MARKER_OFFSET 0
 #define KV_HEADER_VERSION_OFFSET 4
 #define KV_HEADER_FIRSTMAXCOUNT_OFFSET (4 + 4)
-#define KV_HEADER_FILESIZE_OFFSET (8 + 4 + 8)
-#define KV_HEADER_FREELIST_OFFSET (8 + 4 + 8 + 8)
+#define KV_HEADER_FILESIZE_OFFSET (8 + 4 + 8 + 1)
+#define KV_HEADER_FREELIST_OFFSET (8 + 4 + 8 + 1 + 8)
+
+// 1. marker                                  4 bytes
+// 2. version                                 4 bytes
+// 3. first table max count                   8 bytes
+// 4. storage type                            1 byte
+// 5. recycled blocks offset (for each size)  64 * 8 bytes
 
 /*
  table:
- next offset: 64 bits
- count: 64 bits
- bloom_size: 64 bits
- maxcount: 64 bits
- bloom filter table: BLOOM_FILTER_SIZE(size) bytes
- offset to items (actual hash table): maxcount items of 64 bits
+ 1. next offset:                         8 bytes
+ 2. count:                               8 bytes
+ 3. bloom_size:                          8 bytes
+ 4. maxcount                             8 bytes
+ 5. bloom filter table                   BLOOM_FILTER_SIZE(size) bytes
+ 6. offset to items (actual hash table)  maxcount items of 8 bytes
  
- table mapping size: 8 + 8 + 8 + 8 + BLOOM_FILTER_SIZE(size) + (size * 8)
+ table mapping size: 8 + 8 + 8 + 8 + BLOOM_FILTER_SIZE(maxcount) + (maxcount * 8)
 */
 
 #define KV_TABLE_NEXT_TABLE_OFFSET_OFFSET 0
@@ -62,13 +68,13 @@
 #define KV_MAX_MEAN_COLLISION 3
 
 /*
- item:
- next offset 64 bits
- hash_value 32 bits
- key size: 64 bits
- key bytes
- data size: 64 bits
- data bytes
+ block:
+ 1. next offset  8 bytes
+ 2. hash_value   4 bytes
+ 3. key size     8 bytes
+ 4. key bytes    variable length
+ 5. data size    8 bytes
+ 6. data bytes   variable length
  */
 
 #define KV_BLOCK_NEXT_OFFSET_OFFSET 0
@@ -88,6 +94,7 @@ struct kvdb {
     int kv_fd;
     int kv_opened;
     uint64_t kv_firstmaxcount;
+    int kv_compression_type;
     uint64_t * kv_filesize; // host order
     uint64_t * kv_free_blocks; // host order
     struct kvdb_table * kv_first_table;

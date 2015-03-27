@@ -21,6 +21,10 @@
 		BDB1046F1ABE90C300FD6FF6 /* KVIndexer.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104601ABE82B000FD6FF6 /* KVIndexer.h */; };
 		BDB104701ABE90C700FD6FF6 /* KVDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */; };
 		BDB104711ABE90C900FD6FF6 /* KVOrderedDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */; };
+		BDB104841AC4D55E00FD6FF6 /* lz4.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB104791AC4D55E00FD6FF6 /* lz4.c */; };
+		BDB104851AC4D55E00FD6FF6 /* lz4frame.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047B1AC4D55E00FD6FF6 /* lz4frame.c */; };
+		BDB104861AC4D55E00FD6FF6 /* lz4hc.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047E1AC4D55E00FD6FF6 /* lz4hc.c */; };
+		BDB104891AC4D55E00FD6FF6 /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB104821AC4D55E00FD6FF6 /* xxhash.c */; };
 		C618377C1763F6B8009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C618377F1763F6CC009E00E4 /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 		C668236A1763C472000C603C /* kvassert.c in Sources */ = {isa = PBXBuildFile; fileRef = C668235B1763C472000C603C /* kvassert.c */; };
@@ -104,6 +108,15 @@
 		BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KVDatabase.m; sourceTree = "<group>"; };
 		BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KVOrderedDatabase.h; sourceTree = "<group>"; };
 		BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KVOrderedDatabase.m; sourceTree = "<group>"; };
+		BDB104791AC4D55E00FD6FF6 /* lz4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = lz4.c; sourceTree = "<group>"; };
+		BDB1047A1AC4D55E00FD6FF6 /* lz4.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lz4.h; sourceTree = "<group>"; };
+		BDB1047B1AC4D55E00FD6FF6 /* lz4frame.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = lz4frame.c; sourceTree = "<group>"; };
+		BDB1047C1AC4D55E00FD6FF6 /* lz4frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lz4frame.h; sourceTree = "<group>"; };
+		BDB1047D1AC4D55E00FD6FF6 /* lz4frame_static.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lz4frame_static.h; sourceTree = "<group>"; };
+		BDB1047E1AC4D55E00FD6FF6 /* lz4hc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = lz4hc.c; sourceTree = "<group>"; };
+		BDB1047F1AC4D55E00FD6FF6 /* lz4hc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lz4hc.h; sourceTree = "<group>"; };
+		BDB104821AC4D55E00FD6FF6 /* xxhash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xxhash.c; sourceTree = "<group>"; };
+		BDB104831AC4D55E00FD6FF6 /* xxhash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xxhash.h; sourceTree = "<group>"; };
 		C66823531763C246000C603C /* libkvdb.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libkvdb.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		C668235B1763C472000C603C /* kvassert.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = kvassert.c; sourceTree = "<group>"; };
 		C668235C1763C472000C603C /* kvassert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvassert.h; sourceTree = "<group>"; };
@@ -166,9 +179,27 @@
 			path = ../objc;
 			sourceTree = "<group>";
 		};
+		BDB104761AC4D55E00FD6FF6 /* lz4 */ = {
+			isa = PBXGroup;
+			children = (
+				BDB104791AC4D55E00FD6FF6 /* lz4.c */,
+				BDB1047A1AC4D55E00FD6FF6 /* lz4.h */,
+				BDB1047B1AC4D55E00FD6FF6 /* lz4frame.c */,
+				BDB1047C1AC4D55E00FD6FF6 /* lz4frame.h */,
+				BDB1047D1AC4D55E00FD6FF6 /* lz4frame_static.h */,
+				BDB1047E1AC4D55E00FD6FF6 /* lz4hc.c */,
+				BDB1047F1AC4D55E00FD6FF6 /* lz4hc.h */,
+				BDB104821AC4D55E00FD6FF6 /* xxhash.c */,
+				BDB104831AC4D55E00FD6FF6 /* xxhash.h */,
+			);
+			name = lz4;
+			path = "../third-party/lz4/lib";
+			sourceTree = "<group>";
+		};
 		C668234A1763C246000C603C = {
 			isa = PBXGroup;
 			children = (
+				BDB104761AC4D55E00FD6FF6 /* lz4 */,
 				BDB1045D1ABE825800FD6FF6 /* objc */,
 				C668235A1763C472000C603C /* src */,
 				C66823801763C48F000C603C /* kvdbtest */,
@@ -325,17 +356,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BDB104841AC4D55E00FD6FF6 /* lz4.c in Sources */,
 				BDB104691ABE82CB00FD6FF6 /* KVDatabase.m in Sources */,
 				BD1E7C841AAA47DD0030673D /* kvdbo.cpp in Sources */,
 				BD520F3B1ABB548D00681B8B /* kvunicode.c in Sources */,
 				C668236A1763C472000C603C /* kvassert.c in Sources */,
 				BD520F391ABB548D00681B8B /* ConvertUTF.c in Sources */,
+				BDB104891AC4D55E00FD6FF6 /* xxhash.c in Sources */,
+				BDB104851AC4D55E00FD6FF6 /* lz4frame.c in Sources */,
 				BD520F3A1ABB548D00681B8B /* kvserialization.cpp in Sources */,
 				BDB1046C1ABE82D900FD6FF6 /* KVOrderedDatabase.m in Sources */,
 				BDB104621ABE82B000FD6FF6 /* KVIndexer.m in Sources */,
 				C668236C1763C472000C603C /* kvblock.c in Sources */,
 				C668236F1763C472000C603C /* kvdb.c in Sources */,
 				C66823741763C472000C603C /* kvprime.c in Sources */,
+				BDB104861AC4D55E00FD6FF6 /* lz4hc.c in Sources */,
 				BD520F3C1ABB548D00681B8B /* sfts.cpp in Sources */,
 				C66823761763C472000C603C /* kvtable.c in Sources */,
 			);
@@ -390,6 +425,11 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"$(SRCROOT)/../third-party/lz4/lib",
+				);
 				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
@@ -414,6 +454,11 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"$(SRCROOT)/../third-party/lz4/lib",
+				);
 			};
 			name = Release;
 		};

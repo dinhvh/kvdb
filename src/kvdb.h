@@ -12,8 +12,16 @@ extern "C" {
 
 typedef struct kvdb kvdb;
 
+enum {
+    KVDB_COMPRESSION_TYPE_RAW,
+    KVDB_COMPRESSION_TYPE_LZ4,
+};
+
 // creates a kvdb.
 kvdb * kvdb_new(const char * filename);
+
+void kvdb_set_compression_type(kvdb * db, int compression_type);
+int kvdb_get_compression_type(kvdb * db);
 
 // destroy a kvdb.
 void kvdb_free(kvdb * db);

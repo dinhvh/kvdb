@@ -26,6 +26,10 @@ DESTINATION
 ${CMAKE_CURRENT_BINARY_DIR}/include/kvdb
 )
 
+set(LZ4_DIR "../third-party/lz4/lib")
+
+include_directories(${LZ4_DIR})
+
 add_library (kvdb
     kvassert.c
     kvblock.c
@@ -37,4 +41,8 @@ add_library (kvdb
     kvunicode.c
     kvserialization.cpp
     ConvertUTF.c
+    ${LZ4_DIR}/lz4.c
+    ${LZ4_DIR}/lz4hc.c
+    ${LZ4_DIR}/lz4frame.c
+    ${LZ4_DIR}/xxhash.c
 )

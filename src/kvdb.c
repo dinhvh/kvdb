@@ -13,6 +13,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <lz4.h>
+
 #include "kvassert.h"
 #include "kvendian.h"
 #include "kvtypes.h"
@@ -24,22 +26,24 @@
 #include "kvblock.h"
 
 #define MARKER "KVDB"
-#define VERSION 2
+#define VERSION 4
 
 static int kvdb_debug = 0;
+
+static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size);
+static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
+              char ** p_value, size_t * p_value_size, size_t * p_free_size);
 
 kvdb * kvdb_new(const char * filename)
 {
     kvdb * db = malloc(sizeof(* db));
-    if (db == NULL)
-        return NULL;
-    
     KVDBAssert(filename != NULL);
     db->kv_filename = strdup(filename);
     KVDBAssert(db->kv_filename != NULL);
     db->kv_fd = -1;
     db->kv_opened = 0;
     db->kv_firstmaxcount = kv_getnextprime(KV_FIRST_TABLE_MAX_COUNT);
+    db->kv_compression_type = KVDB_COMPRESSION_TYPE_LZ4;
     db->kv_filesize = NULL;
     db->kv_free_blocks = NULL;
     db->kv_first_table = NULL;
@@ -55,6 +59,19 @@ void kvdb_free(kvdb * db)
     }
     free(db->kv_filename);
     free(db);
+}
+
+void kvdb_set_compression_type(kvdb * db, int compression_type)
+{
+    if (db->kv_opened) {
+        return;
+    }
+    db->kv_compression_type = compression_type;
+}
+
+int kvdb_get_compression_type(kvdb * db)
+{
+    return db->kv_compression_type;
 }
 
 int kvdb_open(kvdb * db)
@@ -85,7 +102,7 @@ int kvdb_open(kvdb * db)
     uint64_t firstmaxcount = kv_getnextprime(KV_FIRST_TABLE_MAX_COUNT);
     uint64_t first_mapping_size = KV_HEADER_SIZE + KV_TABLE_SIZE(firstmaxcount);
     
-    char data[4 + 4 + 8];
+    char data[4 + 4 + 8 + 1];
     
     if (stat_buf.st_size == 0) {
         create_file = 1;
@@ -98,7 +115,8 @@ int kvdb_open(kvdb * db)
         }
         memcpy(data, MARKER, 4);
         h32_to_bytes(&data[4], VERSION);
-        h64_to_bytes(&data[8], firstmaxcount);
+        h64_to_bytes(&data[4 + 4], firstmaxcount);
+        data[4 + 4 + 8] = db->kv_compression_type;
         write(db->kv_fd, data, sizeof(data));
         
         kv_table_header_write(db, KV_HEADER_SIZE, firstmaxcount);
@@ -106,10 +124,12 @@ int kvdb_open(kvdb * db)
     
     char marker[4];
     uint32_t version;
+    int compression_type;
     pread(db->kv_fd, data, sizeof(data), 0);
     memcpy(marker, data, 4);
     version = bytes_to_h32(&data[4]);
-    firstmaxcount = bytes_to_h64(&data[8]);
+    firstmaxcount = bytes_to_h64(&data[4 + 4]);
+    compression_type = data[4 + 4 + 8];
     
     r = memcmp(marker, MARKER, 4);
     if (r != 0) {
@@ -122,6 +142,7 @@ int kvdb_open(kvdb * db)
     }
     
     db->kv_firstmaxcount = firstmaxcount;
+    db->kv_compression_type = compression_type;
     db->kv_opened = 1;
     
     r = kv_tables_setup(db);
@@ -152,6 +173,41 @@ void kvdb_close(kvdb * db)
 }
 
 int kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size)
+{
+    if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
+        return internal_kvdb_set(db, key, key_size, value, value_size);
+    }
+    else if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_LZ4) {
+        if (value_size == 0) {
+            return internal_kvdb_set(db, key, key_size, value, value_size);
+        }
+        else {
+            int max_compressed_size = LZ4_compressBound((int) value_size);
+            char * compressed_value = NULL;
+            int allocated = 0;
+            if (max_compressed_size < 4096) {
+                compressed_value = alloca(sizeof(uint32_t) + max_compressed_size);
+            }
+            else {
+                allocated = 1;
+                compressed_value = malloc(sizeof(uint32_t) + max_compressed_size);
+            }
+            * (uint32_t *) compressed_value = htonl(value_size);
+            int compressed_value_size = LZ4_compress(value, compressed_value + sizeof(uint32_t), (int) value_size);
+            int r = internal_kvdb_set(db, key, key_size, compressed_value, sizeof(uint32_t) + compressed_value_size);
+            if (allocated) {
+                free(compressed_value);
+            }
+            return r;
+        }
+    }
+    else {
+        KVDBAssert(0);
+        return 0;
+    }
+}
+
+static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size)
 {
     uint32_t hash_value[KV_BLOOM_FILTER_HASH_COUNT];
     table_bloom_filter_compute_hash(hash_value, KV_BLOOM_FILTER_HASH_COUNT, key, key_size);
@@ -383,7 +439,6 @@ static void delete_key_callback(kvdb * db, struct find_key_cb_params * params,
     int r;
     
     if (params->previous_offset == 0) {
-        //fprintf(stderr, "offset: %lli\n", (unsigned long long) params->next_offset);
         params->item->kv_offset = hton64(params->next_offset);
     }
     else {
@@ -475,6 +530,42 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
 int kvdb_get2(kvdb * db, const char * key, size_t key_size,
               char ** p_value, size_t * p_value_size, size_t * p_free_size)
 {
+    if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
+        return internal_kvdb_get2(db, key, key_size, p_value, p_value_size, p_free_size);
+    }
+    else if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_LZ4) {
+        char * compressed_value;
+        size_t compressed_value_size;
+        int r = internal_kvdb_get2(db, key, key_size, &compressed_value, &compressed_value_size, p_free_size);
+        if (r < 0) {
+            return r;
+        }
+        if (compressed_value_size == 0) {
+            * p_value = NULL;
+            * p_value_size = 0;
+            return 0;
+        }
+    
+        size_t value_size = ntohl(* (uint32_t *) compressed_value);
+        char * value = malloc(value_size);
+        LZ4_decompress_fast(compressed_value + sizeof(uint32_t), value, (int) value_size);
+        free(compressed_value);
+        if (p_free_size != NULL) {
+            * p_free_size = 0;
+        }
+        * p_value_size = value_size;
+        * p_value = value;
+        return 0;
+    }
+    else {
+        KVDBAssert(0);
+        return 0;
+    }
+}
+
+static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
+              char ** p_value, size_t * p_value_size, size_t * p_free_size)
+{
     int r;
     struct read_value_params data;
     
@@ -556,26 +647,43 @@ static void append_value_callback(kvdb * db, struct find_key_cb_params * params,
 int kvdb_append(kvdb * db, const char * key, size_t key_size,
                 const char * value, size_t value_size)
 {
-    int r;
-    struct append_value_params data;
+    if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
+        int r;
+        struct append_value_params data;
     
-    data.append_size = value_size;
-    data.append_data = value;
-    data.result = -1;
-    data.found = 0;
     
-    r = find_key(db, key, key_size, append_value_callback, &data);
-    if (r < 0) {
-        return -2;
-    }
-    if (data.result < 0) {
-        return data.result;
-    }
-    if (!data.found) {
-        return -1;
-    }
+        data.append_size = value_size;
+        data.append_data = value;
+        data.result = -1;
+        data.found = 0;
     
-    return 0;
+        r = find_key(db, key, key_size, append_value_callback, &data);
+        if (r < 0) {
+            return -2;
+        }
+        if (data.result < 0) {
+            return data.result;
+        }
+        if (!data.found) {
+            return -1;
+        }
+    
+        return 0;
+    }
+    else {
+        char * existing_value = NULL;
+        size_t existing_value_size = 0;
+        int r = kvdb_get(db, key, key_size, &existing_value, &existing_value_size);
+        if (r < 0) {
+            return r;
+        }
+        char * concatenated_value = malloc(existing_value_size + value_size);
+        memcpy(concatenated_value, existing_value, existing_value_size);
+        memcpy(concatenated_value + existing_value_size, value, value_size);
+        r = kvdb_set(db, key, key_size, concatenated_value, existing_value_size + value_size);
+        free(concatenated_value);
+        return r;
+    }
 }
 
 int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_data)
