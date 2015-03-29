@@ -214,6 +214,15 @@ void kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
     KVDBAssert(r == 0);
     iterator->node_index = idx;
     iterator->key_index = find_key(iterator, key_string);
+    while (kvdbo_iterator_is_valid(iterator)) {
+        const char * current_key;
+        size_t current_key_len;
+        kvdbo_iterator_get_key(iterator, &current_key, &current_key_len);
+        if (std::string(current_key, current_key_len) >= key_string) {
+            break;
+        }
+        kvdbo_iterator_next(iterator);
+    }
 }
 
 void kvdbo_iterator_next(kvdbo_iterator * iterator)
