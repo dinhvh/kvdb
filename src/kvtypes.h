@@ -14,22 +14,12 @@
 
 #include "kvdb.h"
 
-/*
- header:
- marker: KVDB: 32 bits
- version: 32bits
- firstmaxcount: 64bits
- filesize: 64 bits
- free list: 64 bytes
- firsttable: table data
- */
-
 #define KV_HEADER_SIZE (4 + 4 + 8 + 1 + 8 + 64 * 8)
 #define KV_HEADER_MARKER_OFFSET 0
 #define KV_HEADER_VERSION_OFFSET 4
 #define KV_HEADER_FIRSTMAXCOUNT_OFFSET (4 + 4)
-#define KV_HEADER_FILESIZE_OFFSET (8 + 4 + 8 + 1)
-#define KV_HEADER_FREELIST_OFFSET (8 + 4 + 8 + 1 + 8)
+#define KV_HEADER_FILESIZE_OFFSET (4 + 4 + 8 + 1)
+#define KV_HEADER_FREELIST_OFFSET (4 + 4 + 8 + 1 + 8)
 
 // 1. marker                                  4 bytes
 // 2. version                                 4 bytes
