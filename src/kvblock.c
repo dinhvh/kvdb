@@ -91,7 +91,18 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     p += sizeof(current_value_size);
     memcpy(p, value, value_size);
     p += value_size;
-    pwrite(db->kv_fd, data, (size_t) (8 + 4 + 1 + 8 + 8 + block_size), offset);
+    size_t remaining = (8 + 4 + 1 + 8 + 8 + block_size);
+    size_t write_offset = offset;
+    char * remaining_data = data;
+    while (remaining > 0) {
+        ssize_t count = pwrite(db->kv_fd, remaining_data, remaining, write_offset);
+        if (count < 0) {
+            return 0;
+        }
+        write_offset += count;
+        remaining_data += count;
+        remaining -= count;
+    }
     if (allocated != NULL) {
         free(allocated);
     }
