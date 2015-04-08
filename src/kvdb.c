@@ -619,7 +619,7 @@ int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_d
 					return -2;
 				}
 				char * p = block_header_data;
-				current_offset = bytes_to_h64(p);
+				uint64_t next_offset = bytes_to_h64(p);
 				p += 8+4+1; // ignore hash_value and log2_size
 				size_t current_key_size = (size_t) bytes_to_h64(p);
 				p += 8;
@@ -650,6 +650,7 @@ int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_d
 				if (stop) {
 					return 0;
 				}
+                current_offset = next_offset;
 			}
 			item ++;
 			count --;
