@@ -42,6 +42,7 @@ static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
 static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
                      char ** p_value, size_t * p_value_size, size_t * p_free_size);
 static int kvdb_restore_journal(kvdb * db);
+static void start_implicit_transaction_if_needed(kvdb * db);
 
 kvdb * kvdb_new(const char * filename)
 {
@@ -58,6 +59,8 @@ kvdb * kvdb_new(const char * filename)
     db->kv_first_table = NULL;
     db->kv_current_table = NULL;
     db->kv_transaction = NULL;
+    db->kv_implicit_transaction = false;
+    db->kv_implicit_transaction_op_count = 0;
     
     return db;
 }
@@ -199,6 +202,12 @@ void kvdb_close(kvdb * db)
         return;
     }
     
+    if (db->kv_transaction != NULL) {
+        if (!db->kv_implicit_transaction) {
+            fprintf(stderr, "transaction not closed properly.\n");
+        }
+        kvdb_transaction_commit(db);
+    }
     kv_tables_unsetup(db);
     close(db->kv_fd);
     db->kv_opened = 0;
@@ -234,6 +243,7 @@ void kvdb_transaction_abort(kvdb * db)
     }
     delete db->kv_transaction;
     db->kv_transaction = NULL;
+    db->kv_implicit_transaction = false;
 }
 
 static inline std::string string_with_uint64(int64_t value)
@@ -407,6 +417,10 @@ int kvdb_transaction_commit(kvdb * db)
         }
     }
     
+    delete db->kv_transaction;
+    db->kv_transaction = NULL;
+    db->kv_implicit_transaction = false;
+    
     return 0;
     
 transaction_failed:
@@ -453,7 +467,7 @@ static int kvdb_restore_journal(kvdb * db)
     if (stat_buf.st_size < 8) {
         goto invalid_journal;
     }
-    fprintf(stderr, "restore journal %llu\n", (unsigned long long) stat_buf.st_size);
+    //fprintf(stderr, "restore journal %llu\n", (unsigned long long) stat_buf.st_size);
     fd = open(filename, O_RDONLY);
     if (fd < 0) {
         goto invalid_journal;
@@ -594,6 +608,8 @@ static kvdb_transaction_item * collect_blocks(kvdb * db, unsigned int table_inde
 
 static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size)
 {
+    start_implicit_transaction_if_needed(db);
+    
     KVDBAssert(db->kv_transaction != NULL);
     
     int r;
@@ -654,6 +670,7 @@ static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const
     uint64_t offset = kv_block_create(db, 0, hash_values[0], key, key_size, value, value_size);
     p_item->block_offsets.push_back(offset);
     p_item->changed = true;
+    db->kv_implicit_transaction_op_count ++;
     
     db->kv_transaction->tables[table_index].count ++;
     
@@ -662,7 +679,6 @@ static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const
 
 int kvdb_set(kvdb * db, const char * key, size_t key_size, const char * value, size_t value_size)
 {
-#warning implement implicit creation of transaction and flush.
     if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
         return internal_kvdb_set(db, key, key_size, value, value_size);
     }
@@ -960,6 +976,8 @@ static void delete_key_callback(kvdb * db, struct find_key_cb_params * params,
 
 int kvdb_delete(kvdb * db, const char * key, size_t key_size)
 {
+    start_implicit_transaction_if_needed(db);
+    
     KVDBAssert(db->kv_transaction != NULL);
     
     int r;
@@ -978,6 +996,7 @@ int kvdb_delete(kvdb * db, const char * key, size_t key_size)
     if (!data.found) {
         return -1;
     }
+    db->kv_implicit_transaction_op_count ++;
     
     return 0;
 }
@@ -1204,4 +1223,21 @@ int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_d
         table_index ++;
 	}
 	return 0;
+}
+
+#define IMPLICIT_TRANSACTION_MAX_OP 10000
+
+static void start_implicit_transaction_if_needed(kvdb * db)
+{
+    if (db->kv_implicit_transaction && (db->kv_implicit_transaction_op_count > IMPLICIT_TRANSACTION_MAX_OP)) {
+        kvdb_transaction_commit(db);
+    }
+    
+    if (db->kv_transaction != NULL) {
+        return;
+    }
+    
+    db->kv_implicit_transaction = true;
+    db->kv_implicit_transaction_op_count = 0;
+    kvdb_transaction_begin(db);
 }

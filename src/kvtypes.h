@@ -98,6 +98,8 @@ struct kvdb {
     struct kvdb_table * kv_first_table;
     struct kvdb_table * kv_current_table;
     struct kvdb_transaction * kv_transaction;
+    bool kv_implicit_transaction;
+    unsigned int kv_implicit_transaction_op_count;
 };
 
 struct kvdb_item {

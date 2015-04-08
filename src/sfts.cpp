@@ -24,6 +24,7 @@ static int db_flush(sfts * index);
 static int tokenize(sfts * index, uint64_t doc, const UChar * text);
 static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
                           std::set<uint64_t> & wordsids_set);
+static void start_implicit_transaction_if_needed(sfts * index);
 
 // . -> next word id
 // ,[docid] -> [words ids]
@@ -35,12 +36,18 @@ struct sfts {
     std::unordered_map<std::string, std::string> sfts_buffer;
     std::unordered_set<std::string> sfts_buffer_dirty;
     std::unordered_set<std::string> sfts_deleted;
+    bool in_transaction;
+    bool implicit_transaction;
+    unsigned int implicit_transaction_op_count;
 };
 
 sfts * sfts_new(void)
 {
     sfts * result = new sfts;
     result->sfts_db = NULL;
+    result->in_transaction = false;
+    result->implicit_transaction = false;
+    result->implicit_transaction_op_count = 0;
     return result;
 }
 
@@ -62,6 +69,9 @@ void sfts_close(sfts * index)
     if (index->sfts_db == NULL) {
         return;
     }
+    if (index->in_transaction && index->implicit_transaction) {
+        sfts_transaction_commit(index);
+    }
     kvdbo_close(index->sfts_db);
     kvdbo_free(index->sfts_db);
     index->sfts_db = NULL;
@@ -74,7 +84,6 @@ void sfts_close(sfts * index)
 
 int sfts_set(sfts * index, uint64_t doc, const char * text)
 {
-#warning implement implicit creation of transaction and flush.
     UChar * utext = kv_from_utf8(text);
     int r = sfts_u_set(index, doc, utext);
     free(utext);
@@ -97,6 +106,7 @@ int sfts_set2(sfts * index, uint64_t doc, const char ** text, int count)
 
 int sfts_u_set(sfts * index, uint64_t doc, const UChar * utext)
 {
+    start_implicit_transaction_if_needed(index);
     int r = sfts_remove(index, doc);
     if (r < 0) {
         return r;
@@ -105,11 +115,13 @@ int sfts_u_set(sfts * index, uint64_t doc, const UChar * utext)
     if (r < 0) {
         return r;
     }
+    index->implicit_transaction_op_count ++;
     return 0;
 }
 
 int sfts_u_set2(sfts * index, uint64_t doc, const UChar ** utext, int count)
 {
+    start_implicit_transaction_if_needed(index);
     int r = sfts_remove(index, doc);
     if (r < 0) {
         return r;
@@ -143,6 +155,7 @@ int sfts_u_set2(sfts * index, uint64_t doc, const UChar ** utext, int count)
     if (r < 0) {
         return r;
     }
+    index->implicit_transaction_op_count ++;
     
     return 0;
 }
@@ -584,6 +597,7 @@ static int db_flush(sfts * index)
 
 void sfts_transaction_begin(sfts * index)
 {
+    index->in_transaction = true;
     kvdbo_transaction_begin(index->sfts_db);
 }
 
@@ -593,10 +607,20 @@ void sfts_transaction_abort(sfts * index)
     index->sfts_buffer_dirty.clear();
     index->sfts_deleted.clear();
     kvdbo_transaction_abort(index->sfts_db);
+    index->in_transaction = false;
+    index->implicit_transaction = false;
 }
 
 int sfts_transaction_commit(sfts * index)
 {
+    if ((index->sfts_buffer.size() == 0) && (index->sfts_buffer_dirty.size() == 0) &&
+        (index->sfts_deleted.size() == 0)) {
+        sfts_transaction_abort(index);
+        return 0;
+    }
+    
+    index->in_transaction = false;
+    index->implicit_transaction = false;
     int r = db_flush(index);
     if (r < 0) {
         kvdbo_transaction_abort(index->sfts_db);
@@ -607,4 +631,21 @@ int sfts_transaction_commit(sfts * index)
         return r;
     }
     return 0;
+}
+
+#define IMPLICIT_TRANSACTION_MAX_OP 100
+
+static void start_implicit_transaction_if_needed(sfts * index)
+{
+    if (index->implicit_transaction && (index->implicit_transaction_op_count > IMPLICIT_TRANSACTION_MAX_OP)) {
+        sfts_transaction_commit(index);
+    }
+    
+    if (index->in_transaction) {
+        return;
+    }
+    
+    index->implicit_transaction = true;
+    index->implicit_transaction_op_count = 0;
+    sfts_transaction_begin(index);
 }

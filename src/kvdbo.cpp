@@ -27,6 +27,10 @@ struct kvdbo {
     std::vector<std::string> nodes_first_keys;
     // number of keys in each node.
     std::vector<uint32_t> nodes_keys_count;
+    
+    bool in_transaction;
+    bool implicit_transaction;
+    unsigned int implicit_transaction_op_count;
 };
 
 // iterator over kvdbo.
@@ -64,6 +68,7 @@ static int remove_node_id(kvdbo * db, uint64_t node_id);
 static int remove_node(kvdbo * db, unsigned int node_index);
 static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
                       std::set<std::string> & keys);
+static void start_implicit_transaction_if_needed(kvdbo * db);
 
 static void show_nodes(kvdbo * db);
 
@@ -75,6 +80,9 @@ kvdbo * kvdbo_new(const char* filename)
     db = new kvdbo;
     db->db = kvdb_new(filename);
     db->next_node_id = 1;
+    db->in_transaction = false;
+    db->implicit_transaction = false;
+    db->implicit_transaction_op_count = 0;
     return db;
 }
 
@@ -102,6 +110,10 @@ int kvdbo_open(kvdbo * db)
 
 void kvdbo_close(kvdbo * db)
 {
+    if (db->in_transaction && db->implicit_transaction) {
+        kvdbo_transaction_commit(db);
+    }
+    KVDBAssert(db->pending_keys.size() == 0 && db->pending_keys_delete.size() == 0);
     db->nodes_keys_count.clear();
     db->nodes_first_keys.clear();
     db->nodes_ids.clear();
@@ -120,9 +132,9 @@ int kvdbo_set(kvdbo * db,
               const char * value,
               size_t value_size)
 {
-#warning implement implicit creation of transaction and flush.
     int r;
     
+    start_implicit_transaction_if_needed(db);
     std::string key_str(key, key_size);
     if (key_str.find(std::string(METAKEY_PREFIX, METAKEY_PREFIX_SIZE)) == 0) {
         // invalid key.
@@ -134,6 +146,7 @@ int kvdbo_set(kvdbo * db,
     if (r != 0) {
         return r;
     }
+    db->implicit_transaction_op_count ++;
     return 0;
 }
 
@@ -151,10 +164,16 @@ int kvdbo_get(kvdbo * db,
 
 int kvdbo_delete(kvdbo * db, const char* key, size_t key_size)
 {
+    start_implicit_transaction_if_needed(db);
     std::string key_str(key, key_size);
     db->pending_keys.erase(key_str);
     db->pending_keys_delete.insert(key_str);
-    return kvdb_delete(db->db, key, key_size);
+    int r = kvdb_delete(db->db, key, key_size);
+    if (r < 0) {
+        return r;
+    }
+    db->implicit_transaction_op_count ++;
+    return r;
 }
 
 #pragma mark iterator management.
@@ -871,6 +890,7 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
 
 void kvdbo_transaction_begin(kvdbo * db)
 {
+    db->in_transaction = true;
     kvdb_transaction_begin(db->db);
 }
 
@@ -879,10 +899,19 @@ void kvdbo_transaction_abort(kvdbo * db)
     db->pending_keys.clear();
     db->pending_keys_delete.clear();
     kvdb_transaction_abort(db->db);
+    db->in_transaction = false;
+    db->implicit_transaction = false;
 }
 
 int kvdbo_transaction_commit(kvdbo * db)
 {
+    if ((db->pending_keys.size() == 0) && (db->pending_keys_delete.size() == 0)) {
+        kvdb_transaction_abort(db->db);
+        return 0;
+    }
+    
+    db->in_transaction = false;
+    db->implicit_transaction = false;
     int r = flush_pending_keys(db);
     if (r < 0) {
         kvdb_transaction_abort(db->db);
@@ -915,4 +944,21 @@ static void show_nodes(kvdbo * db)
     }
     printf("\n");
     printf("*******\n");
+}
+
+#define IMPLICIT_TRANSACTION_MAX_OP 10000
+
+static void start_implicit_transaction_if_needed(kvdbo * db)
+{
+    if (db->implicit_transaction && (db->implicit_transaction_op_count > IMPLICIT_TRANSACTION_MAX_OP)) {
+        kvdbo_transaction_commit(db);
+    }
+    
+    if (db->in_transaction) {
+        return;
+    }
+    
+    db->implicit_transaction = true;
+    db->implicit_transaction_op_count = 0;
+    kvdbo_transaction_begin(db);
 }
