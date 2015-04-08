@@ -44,6 +44,7 @@ enum {
     kvdbo_close(_db);
 }
 
+/*
 - (BOOL) flush
 {
     int r = kvdbo_flush(_db);
@@ -52,6 +53,7 @@ enum {
     }
     return YES;
 }
+ */
 
 - (NSData *) dataForKey:(NSString *)key
 {
@@ -104,6 +106,22 @@ enum {
 - (KVOrderedDatabaseIterator *) keyIterator
 {
     return [[KVOrderedDatabaseIterator alloc] initWithDatabase:self];
+}
+
+- (void) beginTransaction
+{
+    kvdbo_transaction_begin(_db);
+}
+
+- (BOOL) commitTransaction
+{
+    int r = kvdbo_transaction_commit(_db);
+    return r == 0;
+}
+
+- (void) abortTransaction
+{
+    kvdbo_transaction_abort(_db);
 }
 
 @end

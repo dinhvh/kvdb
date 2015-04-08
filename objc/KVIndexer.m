@@ -33,6 +33,7 @@ enum {
     sfts_close(_db);
 }
 
+/*
 - (BOOL) flush
 {
     int r = sfts_flush(_db);
@@ -40,6 +41,23 @@ enum {
         return NO;
     }
     return YES;
+}
+ */
+
+- (void) beginTransaction
+{
+    sfts_transaction_begin(_db);
+}
+
+- (BOOL) commitTransaction
+{
+    int r = sfts_transaction_commit(_db);
+    return r == 0;
+}
+
+- (void) abortTransaction
+{
+    sfts_transaction_abort(_db);
 }
 
 - (BOOL) setString:(NSString *)string forDocID:(uint64_t)docID

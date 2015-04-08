@@ -16,11 +16,13 @@
 #include "kvtypes.h"
 #include "kvprime.h"
 #include "kvpaddingutils.h"
+#include "kvassert.h"
 
 static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, int is_first);
 static int mapping_setup(struct kvdb_mapping * mapping, int fd, off_t offset, size_t size);
 static void mapping_unsetup(struct kvdb_mapping * mapping);
 static void unmap_table(struct kvdb_table * table);
+static uint64_t transaction_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result);
 
 int kv_table_header_write(kvdb * db, uint64_t table_start, uint64_t maxcount)
 {
@@ -49,7 +51,10 @@ void kv_tables_unsetup(kvdb * db)
 
 uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
 {
-    //fprintf(stderr, "create table %llu", (unsigned long long) size);
+    if (db->kv_transaction != NULL) {
+        return transaction_table_create(db, size, result);
+    }
+    
     uint64_t mapping_size = KV_TABLE_SIZE(size);
     uint64_t offset = ntoh64(* db->kv_filesize);
     int r;
@@ -71,6 +76,23 @@ uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
     return offset;
 }
 
+static uint64_t transaction_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
+{
+    KVDBAssert(db->kv_transaction != NULL);
+    uint64_t mapping_size = KV_TABLE_SIZE(size);
+    uint64_t offset = db->kv_transaction->filesize;
+    int r;
+    r = ftruncate(db->kv_fd, offset + mapping_size);
+    if (r < 0)
+        return 0;
+    db->kv_transaction->filesize += mapping_size;
+    r = kv_table_header_write(db, offset, size);
+    if (r < 0)
+        return 0;
+    
+    return offset;
+}
+
 static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, int is_first)
 {
     struct kvdb_table * table;
@@ -80,7 +102,7 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     int r;
     off_t pre_page_align_size;
     
-    table = calloc(1, sizeof(* table));
+    table = (kvdb_table *) calloc(1, sizeof(* table));
     if (is_first) {
         pre_page_align_size = KV_HEADER_SIZE;
     }
@@ -99,7 +121,10 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     if (r < 0) {
         return -1;
     }
+    table->kv_offset = offset;
     table->kv_table_start = table->kv_mapping.kv_bytes + pre_page_align_size;
+    
+    //fprintf(stderr, "mapped offset %i at pointer %p\n", (int) offset, (void *) table->kv_table_start);
     
     table->kv_items = (struct kvdb_item *) (table->kv_table_start + KV_TABLE_ITEMS_OFFSET_OFFSET(maxcount));
     table->kv_next_table_offset = (uint64_t *) (table->kv_table_start + KV_TABLE_NEXT_TABLE_OFFSET_OFFSET);
@@ -137,8 +162,11 @@ static void unmap_table(struct kvdb_table * table)
 
 static int mapping_setup(struct kvdb_mapping * mapping, int fd, off_t offset, size_t size)
 {
-    mapping->kv_bytes = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+    mapping->kv_offset = offset;
+    mapping->kv_bytes = (char *) mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
     if (mapping->kv_bytes == MAP_FAILED) {
+        mapping->kv_bytes = NULL;
+        mapping->kv_size = 0;
         return -1;
     }
     mapping->kv_size = size;
@@ -159,4 +187,9 @@ static void mapping_unsetup(struct kvdb_mapping * mapping)
     }
     mapping->kv_bytes = NULL;
     mapping->kv_size = 0;
+}
+
+int kv_map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset)
+{
+    return map_table(db, result, offset, 0);
 }

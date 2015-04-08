@@ -99,4 +99,20 @@ static void enumeration_callback(kvdb * db, struct kvdb_enumerate_cb_params * pa
     database.enumerationBlock(key, (BOOL *) stop);
 }
 
+- (void) beginTransaction
+{
+    kvdb_transaction_begin(_db);
+}
+
+- (BOOL) commitTransaction
+{
+    int r = kvdb_transaction_commit(_db);
+    return r == 0;
+}
+
+- (void) abortTransaction
+{
+    kvdb_transaction_abort(_db);
+}
+
 @end

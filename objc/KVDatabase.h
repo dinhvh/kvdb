@@ -13,6 +13,15 @@
 // Closes the database.
 - (void) close;
 
+// Start a transaction.
+- (void) beginTransaction;
+
+// Commit the transaction.
+- (BOOL) commitTransaction;
+
+// Abort the transaction.
+- (void) abortTransaction;
+
 // Returns the data associated with the key.
 - (NSData *) dataForKey:(NSString *)key;
 

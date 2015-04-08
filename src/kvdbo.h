@@ -24,7 +24,7 @@ int kvdbo_open(kvdbo * db);
 void kvdbo_close(kvdbo * db);
 
 // write pending changes.
-int kvdbo_flush(kvdbo * db);
+//int kvdbo_flush(kvdbo * db);
 
 // insert a key / value. if the key already exists, it's replaced.
 // Returns -2 if there's a I/O error.
@@ -76,6 +76,15 @@ void kvdbo_iterator_get_key(kvdbo_iterator * iterator, const char ** p_key, size
 
 // returns whether the iterator is valid.
 int kvdbo_iterator_is_valid(kvdbo_iterator * iterator);
+
+// creates a new transaction.
+void kvdbo_transaction_begin(kvdbo * db);
+
+// abort the transaction.
+void kvdbo_transaction_abort(kvdbo * db);
+
+// commit the transaction to disk.
+int kvdbo_transaction_commit(kvdbo * db);
 
 #ifdef __cplusplus
 }

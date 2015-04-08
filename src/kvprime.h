@@ -11,6 +11,14 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint64_t kv_getnextprime(uint64_t num);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

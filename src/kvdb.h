@@ -32,6 +32,15 @@ int kvdb_open(kvdb * db);
 // closes a kvdb.
 void kvdb_close(kvdb * db);
 
+// creates a new transaction.
+void kvdb_transaction_begin(kvdb * db);
+    
+// abort the transaction.
+void kvdb_transaction_abort(kvdb * db);
+
+// commit the transaction to disk.
+int kvdb_transaction_commit(kvdb * db);
+
 // insert a key / value in the database.
 // Returns -2 if there's a I/O error.
 int kvdb_set(kvdb * db, const char * key, size_t key_size,

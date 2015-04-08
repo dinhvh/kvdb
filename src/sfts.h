@@ -73,7 +73,16 @@ int sfts_u_search(sfts * index, const UChar * utoken, sfts_search_kind kind,
     uint64_t ** p_docsids, size_t * p_count);
 
 // Writes changes to disk if they are still pending in memory.
-int sfts_flush(sfts * index);
+//int sfts_flush(sfts * index);
+
+// creates a new transaction.
+void sfts_transaction_begin(sfts * index);
+
+// abort the transaction.
+void sfts_transaction_abort(sfts * index);
+
+// commit the transaction to disk.
+int sfts_transaction_commit(sfts * index);
 
 #ifdef __cplusplus
 }

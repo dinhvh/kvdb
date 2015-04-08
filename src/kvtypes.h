@@ -11,25 +11,20 @@
 
 #include <inttypes.h>
 #include <sys/types.h>
+#if __cplusplus
+#include <string>
+#include <unordered_map>
+#include <vector>
+#endif
 
 #include "kvdb.h"
-
-/*
- header:
- marker: KVDB: 32 bits
- version: 32bits
- firstmaxcount: 64bits
- filesize: 64 bits
- free list: 64 bytes
- firsttable: table data
- */
 
 #define KV_HEADER_SIZE (4 + 4 + 8 + 1 + 8 + 64 * 8)
 #define KV_HEADER_MARKER_OFFSET 0
 #define KV_HEADER_VERSION_OFFSET 4
 #define KV_HEADER_FIRSTMAXCOUNT_OFFSET (4 + 4)
-#define KV_HEADER_FILESIZE_OFFSET (8 + 4 + 8 + 1)
-#define KV_HEADER_FREELIST_OFFSET (8 + 4 + 8 + 1 + 8)
+#define KV_HEADER_FILESIZE_OFFSET (4 + 4 + 8 + 1)
+#define KV_HEADER_FREELIST_OFFSET (4 + 4 + 8 + 1 + 8)
 
 // 1. marker                                  4 bytes
 // 2. version                                 4 bytes
@@ -86,7 +81,10 @@
 struct kvdb_mapping {
     char * kv_bytes;
     size_t kv_size;
+    uint64_t kv_offset;
 };
+
+struct kvdb_transaction;
 
 struct kvdb {
     char * kv_filename;
@@ -99,6 +97,7 @@ struct kvdb {
     uint64_t * kv_free_blocks; // host order
     struct kvdb_table * kv_first_table;
     struct kvdb_table * kv_current_table;
+    struct kvdb_transaction * kv_transaction;
 };
 
 struct kvdb_item {
@@ -108,6 +107,7 @@ struct kvdb_item {
 
 struct kvdb_table {
     struct kvdb_mapping kv_mapping;
+    uint64_t kv_offset;
     char * kv_table_start;
     struct kvdb_item * kv_items;
     uint64_t * kv_bloom_filter_size; // host order
@@ -121,15 +121,45 @@ struct kvdb_table {
 struct find_key_cb_params {
     const char * key;
     size_t key_size;
-    uint64_t previous_offset;
     uint64_t current_offset;
     uint64_t next_offset;
-    struct kvdb_item * item;
-    uint64_t * table_count;
     size_t log2_size;
+    uint32_t table_index;
+    uint32_t cell_index;
+    int is_transaction;
 };
 
 typedef void findkey_callback(kvdb * db, struct find_key_cb_params * params,
                               void * data);
+
+#if __cplusplus
+enum {
+    KVDB_TRANSACTION_ITEM_TYPE_TABLE,
+    KVDB_TRANSACTION_ITEM_TYPE_DELETION,
+};
+
+struct kvdb_transaction_table {
+    uint64_t count;
+    uint64_t maxcount;
+    uint64_t bloomsize;
+    uint64_t offset;
+    std::unordered_map<uint64_t, uint8_t> bloom_table;
+};
+
+struct kvdb_transaction_item {
+    uint32_t table_index; // table identifier.
+    uint32_t cell_index;
+    std::vector<uint64_t> block_offsets;
+    bool changed;
+};
+
+struct kvdb_transaction {
+    uint64_t filesize;
+    std::vector<kvdb_transaction_table> tables;
+    std::unordered_map<std::string, kvdb_transaction_item> items;
+    uint64_t first_recycled_blocks[64];
+    std::vector<uint64_t> recycled_blocks[64];
+};
+#endif
 
 #endif

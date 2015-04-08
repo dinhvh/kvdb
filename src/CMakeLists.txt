@@ -32,10 +32,10 @@ include_directories(${LZ4_DIR})
 
 add_library (kvdb
     kvassert.c
-    kvblock.c
-    kvdb.c
+    kvblock.cpp
+    kvdb.cpp
     kvprime.c
-    kvtable.c
+    kvtable.cpp
     kvdbo.cpp
     sfts.cpp
     kvunicode.c

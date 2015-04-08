@@ -109,11 +109,6 @@ void kvdbo_close(kvdbo * db)
     kvdb_close(db->db);
 }
 
-int kvdbo_flush(kvdbo * db)
-{
-    return flush_pending_keys(db);
-}
-
 #pragma mark key insertion / deletion / retrieval.
 
 const char METAKEY_PREFIX[7] = "\0kvdbo";
@@ -125,6 +120,7 @@ int kvdbo_set(kvdbo * db,
               const char * value,
               size_t value_size)
 {
+#warning implement implicit creation of transaction and flush.
     int r;
     
     std::string key_str(key, key_size);
@@ -870,6 +866,32 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
     }
     delete [] nodes;
     
+    return 0;
+}
+
+void kvdbo_transaction_begin(kvdbo * db)
+{
+    kvdb_transaction_begin(db->db);
+}
+
+void kvdbo_transaction_abort(kvdbo * db)
+{
+    db->pending_keys.clear();
+    db->pending_keys_delete.clear();
+    kvdb_transaction_abort(db->db);
+}
+
+int kvdbo_transaction_commit(kvdbo * db)
+{
+    int r = flush_pending_keys(db);
+    if (r < 0) {
+        kvdb_transaction_abort(db->db);
+        return r;
+    }
+    r = kvdb_transaction_commit(db->db);
+    if (r < 0) {
+        return r;
+    }
     return 0;
 }
 

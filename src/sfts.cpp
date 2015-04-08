@@ -6,6 +6,7 @@
 
 #include "kvunicode.h"
 #include "kvserialization.h"
+#include "kvassert.h"
 
 #include <set>
 #include <map>
@@ -61,24 +62,19 @@ void sfts_close(sfts * index)
     if (index->sfts_db == NULL) {
         return;
     }
-    db_flush(index);
     kvdbo_close(index->sfts_db);
     kvdbo_free(index->sfts_db);
     index->sfts_db = NULL;
 }
 
-int sfts_flush(sfts * index)
-{
-    return db_flush(index);
-}
-
-//int lidx_set(lidx * index, uint64_t doc, const char * text);
+//int sfts_set(lidx * index, uint64_t doc, const char * text);
 // text -> wordboundaries -> transliterated word -> store word with new word id
 // word -> append doc id to docs ids
 // store doc id -> words ids
 
 int sfts_set(sfts * index, uint64_t doc, const char * text)
 {
+#warning implement implicit creation of transaction and flush.
     UChar * utext = kv_from_utf8(text);
     int r = sfts_u_set(index, doc, utext);
     free(utext);
@@ -312,7 +308,7 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
     return 0;
 }
 
-//int lidx_remove(lidx * index, uint64_t doc);
+//int sfts_remove(lidx * index, uint64_t doc);
 // docid -> words ids -> remove docid from word
 // if docs ids for word is empty, we remove the word id
 
@@ -419,7 +415,7 @@ static int remove_word(sfts * index, std::string word, uint64_t wordid)
     return 0;
 }
 
-//int lidx_search(lidx * index, const char * token);
+//int sfts_search(lidx * index, const char * token);
 // token -> transliterated token -> docs ids
 
 int sfts_search(sfts * index, const char * token, sfts_search_kind kind, uint64_t ** p_docsids, size_t * p_count)
@@ -484,6 +480,7 @@ int sfts_u_search(sfts * index, const UChar * utoken, sfts_search_kind kind,
             int r = kvdbo_get(index->sfts_db, key_str.c_str(), key_str.length(), &value, &value_size);
             if (r != 0) {
                 fprintf(stderr, "VALUE NOT FOUND for key %s\n", key_str.c_str());
+                KVDBAssert(0);
             }
             std::string value_str(value, value_size);
             free(value);
@@ -559,18 +556,55 @@ static int db_flush(sfts * index)
     if ((index->sfts_buffer_dirty.size() == 0) && (index->sfts_deleted.size() == 0)) {
         return 0;
     }
+    
+    int r;
     for(std::unordered_set<std::string>::iterator set_iterator = index->sfts_buffer_dirty.begin() ; set_iterator != index->sfts_buffer_dirty.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
         std::string value = index->sfts_buffer[key];
-        kvdbo_set(index->sfts_db, key.c_str(), key.length(), value.c_str(), value.length());
+        r = kvdbo_set(index->sfts_db, key.c_str(), key.length(), value.c_str(), value.length());
+        if (r < 0) {
+            return r;
+        }
     }
     for(std::unordered_set<std::string>::iterator set_iterator = index->sfts_deleted.begin() ; set_iterator != index->sfts_deleted.end() ; ++ set_iterator) {
         std::string key = * set_iterator;
-        kvdbo_delete(index->sfts_db, key.c_str(), key.length());
+        r = kvdbo_delete(index->sfts_db, key.c_str(), key.length());
+        if (r == -1) {
+            // do nothing.
+        }
+        else if (r < 0) {
+            return r;
+        }
     }
-    kvdbo_flush(index->sfts_db);
     index->sfts_buffer.clear();
     index->sfts_buffer_dirty.clear();
     index->sfts_deleted.clear();
+    return 0;
+}
+
+void sfts_transaction_begin(sfts * index)
+{
+    kvdbo_transaction_begin(index->sfts_db);
+}
+
+void sfts_transaction_abort(sfts * index)
+{
+    index->sfts_buffer.clear();
+    index->sfts_buffer_dirty.clear();
+    index->sfts_deleted.clear();
+    kvdbo_transaction_abort(index->sfts_db);
+}
+
+int sfts_transaction_commit(sfts * index)
+{
+    int r = db_flush(index);
+    if (r < 0) {
+        kvdbo_transaction_abort(index->sfts_db);
+        return r;
+    }
+    r = kvdbo_transaction_commit(index->sfts_db);
+    if (r < 0) {
+        return r;
+    }
     return 0;
 }

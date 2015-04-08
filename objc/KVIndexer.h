@@ -20,8 +20,14 @@ typedef enum {
 // Closes the indexer.
 - (void) close;
 
-// Write pending changes to disk.
-- (BOOL) flush;
+// Start a transaction.
+- (void) beginTransaction;
+
+// Commit the transaction.
+- (BOOL) commitTransaction;
+
+// Abort the transaction.
+- (void) abortTransaction;
 
 // Add a document to the indexer. string is the content to index.
 // the string will be tokenized.

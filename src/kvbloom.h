@@ -11,30 +11,32 @@
 
 #include "kvmurmurhash.h"
 
-static inline void table_bloom_filter_set(struct kvdb_table * table, uint32_t * hash_values,
-                                          int hash_count)
+static inline void table_transaction_bloom_filter_set(struct kvdb * db, unsigned int table_index,
+                                                      uint32_t * hash_values, int hash_count)
 {
-    //fprintf(stderr, "----set\n");
     for(unsigned int i = 0 ; i < hash_count ; i ++) {
-        uint64_t idx = hash_values[i] % ntoh64(* table->kv_bloom_filter_size);
-        //fprintf(stderr, "%u\n", (unsigned int) idx);
-        table->kv_bloom_filter[idx / 8] |= 1 << (idx % 8);
+        uint64_t idx = hash_values[i] % db->kv_transaction->tables[table_index].bloomsize;
+        uint64_t byte = idx / 8;
+        int bit = idx % 8;
+        std::unordered_map<uint64_t, uint8_t>::iterator it = db->kv_transaction->tables[table_index].bloom_table.find(idx / 8);
+        if (it != db->kv_transaction->tables[table_index].bloom_table.end()) {
+            it->second |= 1 << bit;
+        }
+        else {
+            db->kv_transaction->tables[table_index].bloom_table.insert(std::pair<uint64_t, uint8_t>(byte, 1 << bit));
+        }
     }
 }
 
 static inline int table_bloom_filter_might_contain(struct kvdb_table * table, uint32_t * hash_values,
                                                    int hash_count)
 {
-    //fprintf(stderr, "----get\n");
     for(unsigned int i = 0 ; i < hash_count ; i ++) {
         uint64_t idx = hash_values[i] % ntoh64(* table->kv_bloom_filter_size);
-        //fprintf(stderr, "%u\n", (unsigned int) idx);
         if ((table->kv_bloom_filter[idx / 8] & (1 << (idx % 8))) == 0) {
-            //fprintf(stderr, "----not found\n");
             return 0;
         }
     }
-    //fprintf(stderr, "----found\n");
     return 1;
 }
 
