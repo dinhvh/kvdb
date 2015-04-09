@@ -378,7 +378,7 @@ int sfts_remove(sfts * index, uint64_t doc)
         std::string word;
         r = get_word_for_wordid(index, wordid, word);
         if (r == KVDB_ERROR_NOT_FOUND) {
-            // do nothing. XXX - should it happen?
+            return KVDB_ERROR_CORRUPTED;
         }
         else if (r < 0) {
             return r;
@@ -400,11 +400,7 @@ static int get_word_for_wordid(sfts * index, uint64_t wordid, std::string & resu
     std::string wordidkey("/");
     kv_encode_uint64(wordidkey, wordid);
     int r = db_get(index, wordidkey, &result);
-    if (r == KVDB_ERROR_NOT_FOUND) {
-        // do nothing. XXX - should it happen?
-        result = std::string();
-    }
-    else if (r < 0) {
+    if (r < 0) {
         return r;
     }
     return KVDB_ERROR_NONE;
@@ -425,7 +421,7 @@ static int remove_docid_in_word(sfts * index, std::string word, uint64_t doc)
     std::string buffer;
     size_t position = 0;
     position = kv_decode_uint64(str, position, &wordid);
-    while (position < buffer.size()) {
+    while (position < str.size()) {
         uint64_t current_docid;
         position = kv_decode_uint64(str, position, &current_docid);
         if (current_docid != doc) {

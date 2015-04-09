@@ -944,8 +944,9 @@ static int match_block_with_key(kvdb * db, uint64_t offset, uint32_t hash_value,
     char block_header_data[KV_BLOCK_KEY_BYTES_OFFSET + PRE_READ_KEY_SIZE];
     
     r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) offset);
-    if (r <= 0)
+    if (r <= 0) {
         return -1;
+    }
 
     char * p = block_header_data;
     next_offset = bytes_to_h64(p);
@@ -1193,12 +1194,14 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
     readparams->value = (char *) malloc((size_t) value_size);
     
 #warning read value data with while loop
-    r = pread(db->kv_fd, readparams->value, (size_t) value_size,
-              params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8);
-    if (r <= 0) {
-        readparams->result = KVDB_ERROR_IO;
-        free(readparams->value);
-        return;
+    if (value_size > 0) {
+        r = pread(db->kv_fd, readparams->value, (size_t) value_size,
+                  params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8);
+        if (r <= 0) {
+            readparams->result = KVDB_ERROR_IO;
+            free(readparams->value);
+            return;
+        }
     }
     
     readparams->result = 0;
