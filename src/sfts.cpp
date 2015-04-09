@@ -333,6 +333,7 @@ int sfts_remove(sfts * index, uint64_t doc)
         return -1;
     }
     
+    db_delete(index, key);
     size_t position = 0;
     while (position < str.size()) {
         uint64_t wordid;
