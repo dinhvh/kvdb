@@ -726,6 +726,9 @@ static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_ind
     transaction_item.cell_index = cell_index;
     transaction_item.table_index = table_index;
     
+    std::pair<std::unordered_map<std::string, kvdb_transaction_item>::iterator, bool> insert_result = db->kv_transaction->items.insert(std::pair<std::string, kvdb_transaction_item>(transaction_key, transaction_item));
+    std::unordered_map<std::string, kvdb_transaction_item>::iterator iterator = insert_result.first;
+
     if (table == NULL) {
         // the table doesn't even exist yet.
     }
@@ -739,7 +742,7 @@ static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_ind
             ssize_t r;
             
             current_offset = next_offset;
-            transaction_item.block_offsets.push_back(current_offset);
+            iterator->second.block_offsets.push_back(current_offset);
             
             char block_header_data[8];
             r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) next_offset);
@@ -752,8 +755,6 @@ static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_ind
         }
     }
 
-    db->kv_transaction->items.insert(std::pair<std::string, kvdb_transaction_item>(transaction_key, transaction_item));
-    std::unordered_map<std::string, kvdb_transaction_item>::iterator iterator = db->kv_transaction->items.find(transaction_key);
     * p_item = &iterator->second;
     return KVDB_ERROR_NONE;
 }
