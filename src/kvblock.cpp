@@ -25,13 +25,11 @@ int kv_block_recycle(kvdb * db, uint64_t offset)
     kv_assert(db->kv_transaction != NULL);
     
     uint8_t log2_size;
-    ssize_t count;
-    
-    count = pread(db->kv_fd, &log2_size, 1, offset + 8 + 4);
-    if (count < 0)
-        return -1;
+    ssize_t count = pread(db->kv_fd, &log2_size, 1, offset + 8 + 4);
+    if (count <= 0)
+        return KVDB_ERROR_IO;
     db->kv_transaction->recycled_blocks[log2_size].push_back(offset);
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_value,
@@ -53,7 +51,7 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
         offset = db->kv_transaction->first_recycled_blocks[log2_size];
         uint64_t next_free_offset;
         ssize_t r = pread(db->kv_fd, &next_free_offset, sizeof(next_free_offset), offset);
-        if (r < 0) {
+        if (r <= 0) {
             return 0;
         }
         db->kv_transaction->first_recycled_blocks[log2_size] = ntoh64(next_free_offset);
@@ -99,7 +97,7 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     char * remaining_data = data;
     while (remaining > 0) {
         ssize_t count = pwrite(db->kv_fd, remaining_data, remaining, write_offset);
-        if (count < 0) {
+        if (count <= 0) {
             return 0;
         }
         write_offset += count;
