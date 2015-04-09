@@ -510,12 +510,19 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
     readparams->value_size = value_size;
     readparams->value = malloc((size_t) value_size);
     
-    r = pread(db->kv_fd, readparams->value, (size_t) value_size,
-              params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8);
-    if (r < 0) {
-        readparams->result = -2;
-        free(readparams->value);
-        return;
+    uint64_t remaining = value_size;
+    char * value_p = readparams->value;
+    while (remaining > 0) {
+        ssize_t count = pread(db->kv_fd, value_p, (size_t) remaining,
+                              params->current_offset + 8 + 4 + 1 + 8 + params->key_size + 8);
+        if (count < 0) {
+            readparams->result = -2;
+            free(readparams->value);
+            readparams->value = NULL;
+            return;
+        }
+        remaining -= count;
+        value_p += count;
     }
     
     readparams->result = 0;
