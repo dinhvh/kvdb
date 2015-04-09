@@ -43,6 +43,9 @@ static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
                      char ** p_value, size_t * p_value_size, size_t * p_free_size);
 static int kvdb_restore_journal(kvdb * db);
 static void start_implicit_transaction_if_needed(kvdb * db);
+static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string> & writes);
+static int map_new_tables(kvdb * db);
+static int write_journal(const char * filename, std::map<uint64_t, std::string> & writes);
 
 kvdb * kvdb_new(const char * filename)
 {
@@ -256,12 +259,52 @@ static inline std::string string_with_uint64(int64_t value)
 
 int kvdb_transaction_commit(kvdb * db)
 {
+    int r;
+    
     // 1. fsync kvdb: it will write created blocks and tables.
     fsync(db->kv_fd);
     
-    // compute journal, file size, tables, links for blocks, recycled blocks => list of {offset, size, data}
     std::map<uint64_t, std::string> writes;
-    std::map<uint64_t, std::string>::iterator it;
+    compute_writes_for_journal(db, writes);
+    
+    // 2. write journal to disk (list of {offset, size, data})
+    char * filename = (char *) alloca(strlen(db->kv_filename) + strlen(".journal") + 1);
+    filename[0] = 0;
+    strcat(filename, db->kv_filename);
+    strcat(filename, ".journal");
+    
+    r = write_journal(filename, writes);
+    if (r < 0) {
+        goto transaction_failed;
+    }
+    
+    // 3. restore journal (kvdb_restore_journal)
+    r = kvdb_restore_journal(db);
+    if (r < 0) {
+        goto transaction_failed;
+    }
+    
+    // 4. map resulting table in memory.
+    r = map_new_tables(db);
+    if (r < 0) {
+        goto transaction_failed;
+    }
+    
+    delete db->kv_transaction;
+    db->kv_transaction = NULL;
+    db->kv_implicit_transaction = false;
+    
+    return 0;
+    
+transaction_failed:
+    unlink(filename);
+    kvdb_transaction_abort(db);
+    return -2;
+}
+
+// compute journal, file size, tables, links for blocks, recycled blocks, changes to bloom filter => list of {offset, size, data}
+static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string> & writes)
+{
     // file size.
     writes.insert(std::pair<uint64_t, std::string>(KV_HEADER_FILESIZE_OFFSET, string_with_uint64(db->kv_transaction->filesize)));
     // tables.
@@ -273,7 +316,7 @@ int kvdb_transaction_commit(kvdb * db)
     }
     for(unsigned int i = 0 ; i < db->kv_transaction->tables.size() ; i ++) {
         writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset + 8, string_with_uint64(db->kv_transaction->tables[i].count)));
-        if (i >= tables_count) {
+        if (i >= tables_count - 1) {
             if (i == db->kv_transaction->tables.size() - 1) {
                 writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset, string_with_uint64(0)));
             }
@@ -347,18 +390,47 @@ int kvdb_transaction_commit(kvdb * db)
             current_table = current_table->kv_next_table;
         }
     }
-    
-    // 2. write journal to disk (list of {offset, size, data})
+}
+
+static int map_new_tables(kvdb * db)
+{
+    unsigned int tables_count = 0;
+    struct kvdb_table * current_table = db->kv_first_table;
+    while (current_table != NULL) {
+        tables_count ++;
+        if (current_table->kv_next_table != NULL) {
+            current_table = current_table->kv_next_table;
+        }
+        else {
+            break;
+        }
+    }
+    if (tables_count < db->kv_transaction->tables.size()) {
+        fprintf(stderr, "adding new table %i %llu\n", tables_count, db->kv_transaction->tables[tables_count].offset);
+        int r = kv_map_table(db, &current_table->kv_next_table, db->kv_transaction->tables[tables_count].offset);
+        if (r < 0) {
+            return r;
+        }
+    }
+    return 0;
+}
+
+static int write_journal(const char * filename, std::map<uint64_t, std::string> & writes)
+{
     int r;
     off_t journal_size = 0;
     void * mapping = NULL;
     char * journal_current = NULL;
+    int fd_journal = -1;
     uint32_t checksum = 0;
-    char * filename = (char *) alloca(strlen(db->kv_filename) + strlen(".journal") + 1);
-    filename[0] = 0;
-    strcat(filename, db->kv_filename);
-    strcat(filename, ".journal");
-    int fd_journal = open(filename, O_RDWR | O_CREAT, 0600);
+    std::map<uint64_t, std::string>::iterator it;
+    
+    fd_journal = open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd_journal == -1) {
+        goto error;
+    }
+    
+    journal_size = 8; // header.
     it = writes.begin();
     while (it != writes.end()) {
         journal_size += sizeof(uint64_t);
@@ -367,15 +439,19 @@ int kvdb_transaction_commit(kvdb * db)
         it ++;
     }
     
-    ftruncate(fd_journal, journal_size + 8);
-    mapping = mmap(NULL, journal_size + 8, PROT_READ | PROT_WRITE, MAP_SHARED, fd_journal, 0);
+    r = ftruncate(fd_journal, journal_size);
+    if (r < 0) {
+        goto error;
+    }
+    
+    mapping = mmap(NULL, journal_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_journal, 0);
     if (mapping == (void *) MAP_FAILED) {
-        goto transaction_failed;
+        goto error;
     }
     memcpy(mapping, "KVJL", 4);
-    it = writes.begin();
-    journal_current = ((char *) mapping) + 8;
     
+    journal_current = ((char *) mapping) + 8;
+    it = writes.begin();
     while (it != writes.end()) {
         uint64_t offset = hton64(it->first);
         uint16_t size = htons(it->second.length());
@@ -388,48 +464,33 @@ int kvdb_transaction_commit(kvdb * db)
         journal_current += it->second.length();
         it ++;
     }
-    checksum = kv_murmur_hash(((const char *) mapping) + 8, journal_size, 0);
+    
+    checksum = kv_murmur_hash(((const char *) mapping) + 8, journal_size - 8, 0);
     checksum = htonl(checksum);
     memcpy(((char *) mapping) + 4, &checksum, sizeof(checksum));
+    
     munmap(mapping, journal_size + 8);
-    fsync(fd_journal);
-    close(fd_journal);
+    mapping = NULL;
     
-    // 6. restore journal (kvdb_restore_journal)
-    r = kvdb_restore_journal(db);
+    r = fsync(fd_journal);
     if (r < 0) {
-        goto transaction_failed;
+        goto error;
     }
     
-    current_table = db->kv_first_table;
-    while (current_table != NULL) {
-        if (current_table->kv_next_table != NULL) {
-            current_table = current_table->kv_next_table;
-        }
-        else {
-            break;
-        }
-    }
-    if (tables_count < db->kv_transaction->tables.size()) {
-        r = kv_map_table(db, &current_table->kv_next_table, db->kv_transaction->tables[tables_count].offset);
-        if (r < 0) {
-            goto transaction_failed;
-        }
-    }
-    
-    delete db->kv_transaction;
-    db->kv_transaction = NULL;
-    db->kv_implicit_transaction = false;
+    close(fd_journal);
+    fd_journal = -1;
     
     return 0;
     
-transaction_failed:
+error:
+    if (mapping != NULL) {
+        munmap(mapping, journal_size + 8);
+    }
     if (fd_journal != -1) {
         close(fd_journal);
     }
     unlink(filename);
-    kvdb_transaction_abort(db);
-    return -2;
+    return -1;
 }
 
 // journal format:
