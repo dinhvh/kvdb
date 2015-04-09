@@ -31,17 +31,16 @@ int kv_table_header_write(kvdb * db, uint64_t table_start, uint64_t maxcount)
     bzero(data, KV_TABLE_HEADER_SIZE);
     h64_to_bytes(&data[KV_TABLE_BLOOM_SIZE_OFFSET], bloomsize);
     h64_to_bytes(&data[KV_TABLE_MAX_COUNT_OFFSET], maxcount);
-    ssize_t r;
-    r = pwrite(db->kv_fd, data, KV_TABLE_HEADER_SIZE, table_start);
-    if (r < 0)
-        return -1;
-    return 0;
+    ssize_t r = pwrite(db->kv_fd, data, KV_TABLE_HEADER_SIZE, table_start);
+    if (r <= 0) {
+        return KVDB_ERROR_IO;
+    }
+    return KVDB_ERROR_NONE;
 }
 
 int kv_tables_setup(kvdb * db)
 {
-    map_table(db, &db->kv_first_table, KV_HEADER_SIZE, 1);
-    return 0;
+    return map_table(db, &db->kv_first_table, KV_HEADER_SIZE, 1);
 }
 
 void kv_tables_unsetup(kvdb * db)
@@ -51,40 +50,15 @@ void kv_tables_unsetup(kvdb * db)
 
 uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
 {
-    if (db->kv_transaction != NULL) {
-        return transaction_table_create(db, size, result);
-    }
-    
-    uint64_t mapping_size = KV_TABLE_SIZE(size);
-    uint64_t offset = ntoh64(* db->kv_filesize);
-    int r;
-    r = ftruncate(db->kv_fd, offset + mapping_size);
-    if (r < 0)
-        return 0;
-    uint64_t filesize = ntoh64(* db->kv_filesize);
-    filesize += mapping_size;
-    r = kv_table_header_write(db, offset, size);
-    if (r < 0)
-        return 0;
-    r = map_table(db, result, offset, 0);
-    if (r < 0)
-        return 0;
-    
-    // When everything succeeded, update file size
-    * db->kv_filesize = hton64(filesize);
-    
-    return offset;
-}
-
-static uint64_t transaction_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
-{
-    KVDBAssert(db->kv_transaction != NULL);
+    kv_assert(db->kv_transaction != NULL);
     uint64_t mapping_size = KV_TABLE_SIZE(size);
     uint64_t offset = db->kv_transaction->filesize;
     int r;
+    
     r = ftruncate(db->kv_fd, offset + mapping_size);
-    if (r < 0)
+    if (r < 0) {
         return 0;
+    }
     db->kv_transaction->filesize += mapping_size;
     r = kv_table_header_write(db, offset, size);
     if (r < 0)
@@ -112,19 +86,17 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     }
     
     read_result = pread(db->kv_fd, data, 8, offset + KV_TABLE_MAX_COUNT_OFFSET);
-    if (read_result < 0) {
-        return -1;
+    if (read_result <= 0) {
+        return KVDB_ERROR_IO;
     }
     maxcount = bytes_to_h64(data);
     uint64_t mapping_size = pre_page_align_size + KV_TABLE_SIZE(maxcount);
     r = mapping_setup(&table->kv_mapping, db->kv_fd, offset - pre_page_align_size, (size_t) mapping_size);
     if (r < 0) {
-        return -1;
+        return r;
     }
     table->kv_offset = offset;
     table->kv_table_start = table->kv_mapping.kv_bytes + pre_page_align_size;
-    
-    //fprintf(stderr, "mapped offset %i at pointer %p\n", (int) offset, (void *) table->kv_table_start);
     
     table->kv_items = (struct kvdb_item *) (table->kv_table_start + KV_TABLE_ITEMS_OFFSET_OFFSET(maxcount));
     table->kv_next_table_offset = (uint64_t *) (table->kv_table_start + KV_TABLE_NEXT_TABLE_OFFSET_OFFSET);
@@ -138,14 +110,14 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     if (* table->kv_next_table_offset != 0) {
         r = map_table(db, &table->kv_next_table, ntoh64(* table->kv_next_table_offset), 0);
         if (r < 0) {
-            return -1;
+            return r;
         }
     }
     else {
         table->kv_next_table = NULL;
     }
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 static void unmap_table(struct kvdb_table * table)
@@ -167,11 +139,11 @@ static int mapping_setup(struct kvdb_mapping * mapping, int fd, off_t offset, si
     if (mapping->kv_bytes == MAP_FAILED) {
         mapping->kv_bytes = NULL;
         mapping->kv_size = 0;
-        return -1;
+        return KVDB_ERROR_IO;
     }
     mapping->kv_size = size;
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 static void mapping_unsetup(struct kvdb_mapping * mapping)
@@ -180,11 +152,7 @@ static void mapping_unsetup(struct kvdb_mapping * mapping)
         return;
     }
     
-    int r;
-    r = munmap(mapping->kv_bytes, mapping->kv_size);
-    if (r < 0) {
-        fprintf(stderr, "Could not unmap memory\n");
-    }
+    munmap(mapping->kv_bytes, mapping->kv_size);
     mapping->kv_bytes = NULL;
     mapping->kv_size = 0;
 }

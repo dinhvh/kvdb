@@ -22,7 +22,7 @@
 
 int kv_block_recycle(kvdb * db, uint64_t offset)
 {
-    KVDBAssert(db->kv_transaction != NULL);
+    kv_assert(db->kv_transaction != NULL);
     
     uint8_t log2_size;
     ssize_t count;
@@ -38,7 +38,7 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
                          const char * key, size_t key_size,
                          const char * value, size_t value_size)
 {
-    KVDBAssert(db->kv_transaction != NULL);
+    kv_assert(db->kv_transaction != NULL);
     
     uint64_t block_size = block_size_round_up(key_size + value_size);
     uint8_t log2_size = log2_round_up(block_size);

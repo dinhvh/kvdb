@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void assertInternal(const char * filename, unsigned int line, int cond, const char * condString)
+void kvdb_assert_internal(const char * filename, unsigned int line, int cond, const char * condString)
 {
     if (cond) {
         return;

@@ -22,6 +22,7 @@ file(COPY
 kvdb.h
 kvdbo.h
 sfts.h
+kvdb-types.h
 DESTINATION
 ${CMAKE_CURRENT_BINARY_DIR}/include/kvdb
 )

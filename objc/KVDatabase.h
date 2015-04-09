@@ -1,11 +1,16 @@
 #import <Foundation/Foundation.h>
 
+#import <kvdb/KVDBTypes.h>
+
 @interface KVDatabase : NSObject
 
 @property (nonatomic, copy, readonly) NSString *path;
 
 // Create a key value store.
 - (id) initWithPath:(NSString *)path;
+
+// Returns the path of the indexer.
+- (NSString *) path;
 
 // Opens the database.
 - (BOOL) open;

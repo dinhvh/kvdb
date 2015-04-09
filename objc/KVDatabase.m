@@ -15,6 +15,7 @@ enum {
 
 @implementation KVDatabase {
     kvdb * _db;
+    NSString * _path;
 }
 
 - (id) initWithPath:(NSString *)path
@@ -23,6 +24,11 @@ enum {
     _path = [path copy];
     _db = kvdb_new([path fileSystemRepresentation]);
     return self;
+}
+
+- (NSString *) path
+{
+    return _path;
 }
 
 - (BOOL) open

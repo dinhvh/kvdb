@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+#import <kvdb/KVDBTypes.h>
+
 @class KVOrderedDatabaseIterator;
 
 @interface KVOrderedDatabase : NSObject
@@ -8,6 +10,9 @@
 
 // Create a ordered key value store.
 - (id) initWithPath:(NSString *)path;
+
+// Returns the path of the indexer.
+- (NSString *) path;
 
 // Opens the database.
 - (BOOL) open;

@@ -90,7 +90,7 @@ struct kvdb {
     char * kv_filename;
     int kv_pagesize;
     int kv_fd;
-    int kv_opened;
+    bool kv_opened;
     uint64_t kv_firstmaxcount;
     int kv_compression_type;
     uint64_t * kv_filesize; // host order

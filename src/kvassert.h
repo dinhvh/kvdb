@@ -13,9 +13,9 @@
 extern "C" {
 #endif
 
-#define KVDBAssert(cond) assertInternal(__FILE__, __LINE__, cond, #cond)
+#define kv_assert(cond) kvdb_assert_internal(__FILE__, __LINE__, cond, #cond)
 
-void assertInternal(const char * filename, unsigned int line, int cond, const char * condString);
+void kvdb_assert_internal(const char * filename, unsigned int line, int cond, const char * condString);
 
 #ifdef __cplusplus
 }

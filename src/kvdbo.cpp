@@ -13,6 +13,7 @@
 struct kvdbo {
     // underlaying kvdb.
     kvdb * db;
+    bool opened;
     
     // in memory buffers for operations.
     std::set<std::string> pending_keys;
@@ -28,8 +29,11 @@ struct kvdbo {
     // number of keys in each node.
     std::vector<uint32_t> nodes_keys_count;
     
+    // whether a transaction has been opened.
     bool in_transaction;
+    // if a transaction is opened, whether it's an implicit transaction.
     bool implicit_transaction;
+    // number of pending changes in the transaction.
     unsigned int implicit_transaction_op_count;
 };
 
@@ -68,7 +72,7 @@ static int remove_node_id(kvdbo * db, uint64_t node_id);
 static int remove_node(kvdbo * db, unsigned int node_index);
 static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
                       std::set<std::string> & keys);
-static void start_implicit_transaction_if_needed(kvdbo * db);
+static int start_implicit_transaction_if_needed(kvdbo * db);
 
 static void show_nodes(kvdbo * db);
 
@@ -79,6 +83,7 @@ kvdbo * kvdbo_new(const char* filename)
     kvdbo * db;
     db = new kvdbo;
     db->db = kvdb_new(filename);
+    db->opened = false;
     db->next_node_id = 1;
     db->in_transaction = false;
     db->implicit_transaction = false;
@@ -88,14 +93,27 @@ kvdbo * kvdbo_new(const char* filename)
 
 void kvdbo_free(kvdbo * db)
 {
+    if (db->opened) {
+        fprintf(stderr, "kvdbo: %s should be closed before freeing\n", kvdbo_get_filename(db));
+    }
     kvdb_free(db->db);
     delete db;
+}
+
+const char * kvdbo_get_filename(kvdbo * db)
+{
+    return kvdb_get_filename(db->db);
 }
 
 #pragma mark opening / closing the database.
 
 int kvdbo_open(kvdbo * db)
 {
+    if (db->opened) {
+        fprintf(stderr, "kvdbo: %s already opened\n", kvdbo_get_filename(db));
+        return KVDB_ERROR_NONE;
+    }
+    
     int r = kvdb_open(db->db);
     if (r < 0) {
         return r;
@@ -105,20 +123,38 @@ int kvdbo_open(kvdbo * db)
         kvdbo_close(db);
         return r;
     }
-    return 0;
+    db->opened = true;
+    return KVDB_ERROR_NONE;
 }
 
-void kvdbo_close(kvdbo * db)
+int kvdbo_close(kvdbo * db)
 {
-    if (db->in_transaction && db->implicit_transaction) {
-        kvdbo_transaction_commit(db);
+    int r;
+    
+    if (!db->opened) {
+        fprintf(stderr, "kvdbo: %s not opened\n", kvdbo_get_filename(db));
+        return KVDB_ERROR_NONE;
     }
-    KVDBAssert(db->pending_keys.size() == 0 && db->pending_keys_delete.size() == 0);
+    
+    if (db->in_transaction) {
+        if (!db->implicit_transaction) {
+            fprintf(stderr, "kvdbo: transaction not closed properly.\n");
+        }
+        r = kvdbo_transaction_commit(db);
+        if (r < 0) {
+            return r;
+        }
+    }
+    kv_assert(db->pending_keys.size() == 0 && db->pending_keys_delete.size() == 0);
     db->nodes_keys_count.clear();
     db->nodes_first_keys.clear();
     db->nodes_ids.clear();
-    flush_pending_keys(db);
-    kvdb_close(db->db);
+    
+    r = kvdb_close(db->db);
+    // no error should happen since we closed any implicit transaction.
+    kv_assert(r == KVDB_ERROR_NONE);
+    db->opened = false;
+    return KVDB_ERROR_NONE;
 }
 
 #pragma mark key insertion / deletion / retrieval.
@@ -134,20 +170,23 @@ int kvdbo_set(kvdbo * db,
 {
     int r;
     
-    start_implicit_transaction_if_needed(db);
+    r = start_implicit_transaction_if_needed(db);
+    if (r < 0) {
+        return r;
+    }
     std::string key_str(key, key_size);
     if (key_str.find(std::string(METAKEY_PREFIX, METAKEY_PREFIX_SIZE)) == 0) {
         // invalid key.
-        return -3;
+        return KVDB_ERROR_KEY_NOT_ALLOWED;
     }
     db->pending_keys_delete.erase(key_str);
     db->pending_keys.insert(key_str);
     r = kvdb_set(db->db, key, key_size, value, value_size);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     db->implicit_transaction_op_count ++;
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 int kvdbo_get(kvdbo * db,
@@ -157,23 +196,33 @@ int kvdbo_get(kvdbo * db,
               size_t * p_value_size)
 {
     if (db->pending_keys_delete.find(std::string(key, key_size)) != db->pending_keys_delete.end()) {
-        return -1;
+        return KVDB_ERROR_NOT_FOUND;
     }
     return kvdb_get(db->db, key, key_size, p_value, p_value_size);
 }
 
 int kvdbo_delete(kvdbo * db, const char* key, size_t key_size)
 {
-    start_implicit_transaction_if_needed(db);
-    std::string key_str(key, key_size);
-    db->pending_keys.erase(key_str);
-    db->pending_keys_delete.insert(key_str);
-    int r = kvdb_delete(db->db, key, key_size);
+    int r;
+    
+    r = start_implicit_transaction_if_needed(db);
     if (r < 0) {
         return r;
     }
+    std::string key_str(key, key_size);
+    if (key_str.find(std::string(METAKEY_PREFIX, METAKEY_PREFIX_SIZE)) == 0) {
+        // invalid key.
+        return KVDB_ERROR_KEY_NOT_ALLOWED;
+    }
+    r = kvdb_delete(db->db, key, key_size);
+    if (r < 0) {
+        // not found or other error.
+        return r;
+    }
+    db->pending_keys.erase(key_str);
+    db->pending_keys_delete.insert(key_str);
     db->implicit_transaction_op_count ++;
-    return r;
+    return KVDB_ERROR_NONE;
 }
 
 #pragma mark iterator management.
@@ -191,84 +240,99 @@ void kvdbo_iterator_free(kvdbo_iterator * iterator)
     delete iterator;
 }
 
-void kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
+int kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
 {
     if (iterator->db->nodes_ids.size() == 0) {
-        return;
+        return KVDB_ERROR_NONE;;
     }
     uint64_t node_id = iterator->db->nodes_ids[0];
     int r = iterator_load_node(iterator, node_id);
-    KVDBAssert(r == 0);
+    if (r < 0) {
+        return r;
+    }
     iterator->node_index = 0;
     iterator->key_index = 0;
+    return KVDB_ERROR_NONE;
 }
 
-void kvdbo_iterator_seek_last(kvdbo_iterator * iterator)
+int kvdbo_iterator_seek_last(kvdbo_iterator * iterator)
 {
     if (iterator->db->nodes_ids.size() == 0) {
-        return;
+        return KVDB_ERROR_NONE;
     }
     uint64_t node_id = iterator->db->nodes_ids[iterator->db->nodes_ids.size() - 1];
     int r = iterator_load_node(iterator, node_id);
-    KVDBAssert(r == 0);
+    if (r < 0) {
+        return r;
+    }
     iterator->node_index = (unsigned int) (iterator->db->nodes_ids.size() - 1);
     iterator->key_index = (unsigned int) (iterator->keys.size() - 1);
+    return KVDB_ERROR_NONE;
 }
 
-void kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
+int kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
                                const char * key,
                                size_t key_size)
 {
     if (iterator->db->nodes_ids.size() == 0) {
-        return;
+        return KVDB_ERROR_NONE;
     }
     std::string key_string(key, key_size);
     unsigned int idx = find_node(iterator->db, key_string);
     uint64_t node_id = iterator->db->nodes_ids[idx];
     int r = iterator_load_node(iterator, node_id);
-    KVDBAssert(r == 0);
+    if (r < 0) {
+        return r;
+    }
     iterator->node_index = idx;
     iterator->key_index = find_key(iterator, key_string);
+    return KVDB_ERROR_NONE;
 }
 
-void kvdbo_iterator_next(kvdbo_iterator * iterator)
+int kvdbo_iterator_next(kvdbo_iterator * iterator)
 {
     iterator->key_index ++;
     if (iterator->key_index < iterator->keys.size()) {
-        return;
+        return KVDB_ERROR_NONE;
     }
     
     // reached end of the node.
     if (iterator->node_index == iterator->db->nodes_ids.size() - 1) {
         // was in the last node.
-        return;
+        return KVDB_ERROR_NONE;
     }
     iterator->node_index ++;
     
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
     int r = iterator_load_node(iterator, node_id);
-    KVDBAssert(r == 0);
+    if (r < 0) {
+        return r;
+    }
     iterator->key_index = 0;
+    return KVDB_ERROR_NONE;
 }
 
-void kvdbo_iterator_previous(kvdbo_iterator * iterator)
+int kvdbo_iterator_previous(kvdbo_iterator * iterator)
 {
     iterator->key_index --;
     if (iterator->key_index >= 0) {
-        return;
+        return KVDB_ERROR_NONE;
     }
     
     // reached beginning of the node.
     if (iterator->node_index == 0) {
         // was in the first node.
-        return;
+        return KVDB_ERROR_NONE;
     }
     iterator->node_index --;
     
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
-    int r= iterator_load_node(iterator, node_id);
-    KVDBAssert(r == 0);
+    int r = iterator_load_node(iterator, node_id);
+    if (r < 0) {
+        return r;
+    }
     iterator->key_index = (unsigned int) (iterator->keys.size() - 1);
+    return KVDB_ERROR_NONE;
 }
 
 void kvdbo_iterator_get_key(kvdbo_iterator * iterator, const char ** p_key, size_t * p_key_size)
@@ -302,16 +366,17 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
     char * value = NULL;
     size_t size = 0;
     int r = kvdb_get(iterator->db->db, node_key.c_str(), node_key.length(), &value, &size);
-    if (r == -1) {
-        return 0;
+    if (r == KVDB_ERROR_NOT_FOUND) {
+        // the node was not found in the storage.
+        return KVDB_ERROR_NONE;
     }
-    if (r == -2) {
-        return -2;
+    else if (r < 0) {
+        return r;
     }
     // load all nodes in a vector.
     unserialize_words_list(iterator->keys, value, size);
     free(value);
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 #pragma mark master node reading / writing.
@@ -337,9 +402,8 @@ static int write_master_node(kvdbo * db)
     std::string master_node_key;
     master_node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     master_node_key.append(MASTER_NODE_KEY, strlen(MASTER_NODE_KEY));
-    int r = kvdb_set(db->db, master_node_key.c_str(), master_node_key.length(),
-                     buffer.c_str(), buffer.length());
-    return r;
+    return kvdb_set(db->db, master_node_key.c_str(), master_node_key.length(),
+                    buffer.c_str(), buffer.length());
 }
 
 static int read_master_node(kvdbo * db)
@@ -353,11 +417,11 @@ static int read_master_node(kvdbo * db)
     master_node_key.append(MASTER_NODE_KEY, strlen(MASTER_NODE_KEY));
     int r = kvdb_get(db->db, master_node_key.c_str(), master_node_key.length(),
                      &value, &size);
-    if (r == -1) {
-        return 0;
+    if (r == KVDB_ERROR_NOT_FOUND) {
+        return KVDB_ERROR_NONE;
     }
-    if (r == -2) {
-        return -2;
+    else if (r < 0) {
+        return r;
     }
     std::string buffer(value, size);
     db->nodes_ids.clear();
@@ -377,10 +441,9 @@ static int read_master_node(kvdbo * db)
         position = kv_decode_uint64(buffer, position, &keys_count);
         db->nodes_keys_count.push_back((uint32_t) keys_count);
     }
-    //size_t remaining = size - (p - value);
     size_t remaining = size - position;
     unserialize_words_list(db->nodes_first_keys, value + position, remaining);
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // binary search of a node that should contain the given key.
@@ -502,8 +565,17 @@ struct modified_node {
 // flush the pending changes of the keys list in memory.
 static int flush_pending_keys(kvdbo * db)
 {
+    int r;
+    
+    if (db->pending_keys.size() == 0 && db->pending_keys_delete.size() == 0) {
+        return KVDB_ERROR_NONE;
+    }
+    
     if ((db->pending_keys.size() > 0) && (db->nodes_ids.size() == 0)) {
-        add_first_node(db);
+        r = add_first_node(db);
+        if (r < 0) {
+            return r;
+        }
     }
     
     struct modified_node current_node;
@@ -518,6 +590,7 @@ static int flush_pending_keys(kvdbo * db)
         if (node_index == db->nodes_ids.size() - 1) {
             // also applies when nodes_ids->size() == 1, node_index == 0
             while (deletion_it != db->pending_keys_delete.end()) {
+                // case of the last node, removes all the pending deletions from this node.
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
@@ -525,6 +598,7 @@ static int flush_pending_keys(kvdbo * db)
                 deletion_it ++;
             }
             while (addition_it != db->pending_keys.end()) {
+                // case of the last node, adds all the pending additions to this node.
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
@@ -537,9 +611,10 @@ static int flush_pending_keys(kvdbo * db)
             while (deletion_it != db->pending_keys_delete.end()) {
                 // make sure that we don't reach the boundary of the next node.
                 if (* deletion_it >= db->nodes_first_keys[node_index + 1]) {
-                    // stop here.
+                    // stop here if the key is not part of the node.
                     break;
                 }
+                // removes the key from the node.
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
@@ -549,9 +624,10 @@ static int flush_pending_keys(kvdbo * db)
             while (addition_it != db->pending_keys.end()) {
                 // make sure that we don't reach the boundary of the next node.
                 if (* addition_it >= db->nodes_first_keys[node_index + 1]) {
-                    // stop here.
+                    // stop here if the key is not part of the node.
                     break;
                 }
+                // adds the key to the node.
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
@@ -561,11 +637,15 @@ static int flush_pending_keys(kvdbo * db)
         }
     }
     // write the last node.
-    write_loaded_node(&current_node);
+    r = write_loaded_node(&current_node);
+    if (r < 0) {
+        return r;
+    }
+    
     db->pending_keys.clear();
     db->pending_keys_delete.clear();
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // load the given node in memory.
@@ -597,16 +677,19 @@ static int load_from_node_id(struct modified_node * node, uint64_t node_id)
     char * value;
     size_t value_size;
     int r = kvdb_get(node->db->db, node_key.c_str(), node_key.length(), &value, &value_size);
-    if (r == -2) {
-        node->node_index = -1;
-        return -2;
+    if (r == KVDB_ERROR_NOT_FOUND) {
+        // normal situation.
+        return KVDB_ERROR_NONE;
     }
-    if (r == 0) {
-        unserialize_words_set(node->keys, value, value_size, false);
-        free(value);
+    else if (r < 0) {
+        node->node_index = -1;
+        return r;
     }
     
-    return 0;
+    unserialize_words_set(node->keys, value, value_size, false);
+    free(value);
+    
+    return KVDB_ERROR_NONE;
 }
 
 static int remove_node_id(kvdbo * db, uint64_t node_id)
@@ -617,13 +700,13 @@ static int remove_node_id(kvdbo * db, uint64_t node_id)
     uint64_t identifier = hton64(node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
     int r = kvdb_delete(db->db, node_key.c_str(), node_key.length());
-    if (r == -1) {
-        return 0;
+    if (r == KVDB_ERROR_NOT_FOUND) {
+        return KVDB_ERROR_NONE;
     }
-    if (r != 0) {
+    else if (r < 0) {
         return r;
     }
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // returns the next usable node identifier.
@@ -641,11 +724,7 @@ static int add_first_node(kvdbo * db)
     db->nodes_ids.push_back(node_id);
     db->nodes_first_keys.push_back("");
     db->nodes_keys_count.push_back(0);
-    int r = write_master_node(db);
-    if (r != 0) {
-        return r;
-    }
-    return 0;
+    return write_master_node(db);
 }
 
 #define MAX_KEYS_PER_NODE 16384
@@ -659,7 +738,7 @@ static int write_loaded_node(struct modified_node * node)
 {
     // not valid.
     if (node->node_index == -1) {
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     
     if (node->keys.size() == 0) {
@@ -675,23 +754,23 @@ static int write_loaded_node(struct modified_node * node)
         // compute the number of nodes to create to replace this one.
         unsigned int count = (unsigned int) ((node->keys.size() + MEAN_KEYS_PER_NODE - 1) / MEAN_KEYS_PER_NODE);
         int r = split_node(node->db, node_index, count, node->keys);
-        if (r != 0) {
+        if (r < 0) {
             return r;
         }
         bool didMerge = false;
         // try to merge the last one with the next one.
         r = try_merge(node->db, node_index + count - 1, &didMerge);
-        if (r != 0) {
+        if (r < 0) {
             return r;
         }
         // invalidate.
         node->node_index = -1;
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     else if (node->keys.size() < KEYS_PER_NODE_MERGE_THRESHOLD) {
         // if there's a low number of keys.
         int r = write_single_loaded_node(node);
-        if (r != 0) {
+        if (r < 0) {
             return r;
         }
         
@@ -700,7 +779,7 @@ static int write_loaded_node(struct modified_node * node)
         bool didMerge = false;
         if (node_index > 0) {
             r = try_merge(node->db, node_index - 1, &didMerge);
-            if (r != 0) {
+            if (r < 0) {
                 return r;
             }
             if (didMerge) {
@@ -714,7 +793,7 @@ static int write_loaded_node(struct modified_node * node)
         }
         // invalidate.
         node->node_index = -1;
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     else {
         // in other cases.
@@ -723,7 +802,7 @@ static int write_loaded_node(struct modified_node * node)
         node->node_index = -1;
         return r;
     }
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 static int write_single_loaded_node(struct modified_node * node)
@@ -737,7 +816,7 @@ static int write_single_loaded_node(struct modified_node * node)
     uint64_t identifier = hton64(node->node_id);
     node_key.append((const char *) &identifier, sizeof(identifier));
     int r = kvdb_set(node->db->db, node_key.c_str(), node_key.length(), value.c_str(), value.length());
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     // update the master node.
@@ -760,12 +839,12 @@ static int write_single_loaded_node(struct modified_node * node)
     }
     if (changed) {
         r = write_master_node(node->db);
-        if (r != 0) {
+        if (r < 0) {
             return r;
         }
     }
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // try to merge with the next node.
@@ -774,13 +853,13 @@ static int try_merge(kvdbo * db, unsigned int node_index, bool * pDidMerge)
     // there's no next node.
     if (node_index + 1 >= db->nodes_ids.size()) {
         * pDidMerge = false;
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     
     // would it make the number of keys larger than the threshold?
     if (db->nodes_keys_count[node_index] + db->nodes_keys_count[node_index + 1] > MEAN_KEYS_PER_NODE) {
         * pDidMerge = false;
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     
     struct modified_node current_node;
@@ -790,53 +869,51 @@ static int try_merge(kvdbo * db, unsigned int node_index, bool * pDidMerge)
     
     // add keys of node at node_index into memory.
     int r = load_from_node_id(&current_node, db->nodes_ids[node_index]);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     // add keys of node at (node_index + 1) into memory.
     r = load_from_node_id(&current_node, db->nodes_ids[node_index + 1]);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     
     // write the result.
     r = write_single_loaded_node(&current_node);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     
-    //delete current_node.keys;
-    
     // remove the node at (node_index + 1).
     r = remove_node(db, node_index + 1);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     
     * pDidMerge = true;
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // remove node at the given index.
 static int remove_node(kvdbo * db, unsigned int node_index)
 {
     int r = remove_node_id(db, db->nodes_ids[node_index]);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     db->nodes_ids.erase(db->nodes_ids.begin() + node_index);
     db->nodes_first_keys.erase(db->nodes_first_keys.begin() + node_index);
     db->nodes_keys_count.erase(db->nodes_keys_count.begin() + node_index);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     r = write_master_node(db);
-    if (r != 0) {
+    if (r < 0) {
         return r;
     }
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // create 'count' new nodes to replace the given node at node_index.
@@ -885,7 +962,7 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
     }
     delete [] nodes;
     
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 void kvdbo_transaction_begin(kvdbo * db)
@@ -907,7 +984,7 @@ int kvdbo_transaction_commit(kvdbo * db)
 {
     if ((db->pending_keys.size() == 0) && (db->pending_keys_delete.size() == 0)) {
         kvdb_transaction_abort(db->db);
-        return 0;
+        return KVDB_ERROR_NONE;
     }
     
     db->in_transaction = false;
@@ -921,7 +998,7 @@ int kvdbo_transaction_commit(kvdbo * db)
     if (r < 0) {
         return r;
     }
-    return 0;
+    return KVDB_ERROR_NONE;
 }
 
 // for debug purpose.
@@ -948,17 +1025,23 @@ static void show_nodes(kvdbo * db)
 
 #define IMPLICIT_TRANSACTION_MAX_OP 10000
 
-static void start_implicit_transaction_if_needed(kvdbo * db)
+static int start_implicit_transaction_if_needed(kvdbo * db)
 {
+    int r;
+    
     if (db->implicit_transaction && (db->implicit_transaction_op_count > IMPLICIT_TRANSACTION_MAX_OP)) {
-        kvdbo_transaction_commit(db);
+        r = kvdbo_transaction_commit(db);
+        if (r < 0) {
+            return r;
+        }
     }
     
     if (db->in_transaction) {
-        return;
+        return KVDB_ERROR_NONE;
     }
     
     db->implicit_transaction = true;
     db->implicit_transaction_op_count = 0;
     kvdbo_transaction_begin(db);
+    return KVDB_ERROR_NONE;
 }

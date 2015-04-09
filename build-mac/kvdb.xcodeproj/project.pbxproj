@@ -7,6 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BD1471E21AD6EFC500C18B9D /* ConvertUTF.c in Sources */ = {isa = PBXBuildFile; fileRef = BD520F311ABB548D00681B8B /* ConvertUTF.c */; };
+		BD1471E31AD6EFC900C18B9D /* kvserialization.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD520F331ABB548D00681B8B /* kvserialization.cpp */; };
+		BD1471E41AD6EFD100C18B9D /* kvunicode.c in Sources */ = {isa = PBXBuildFile; fileRef = BD520F351ABB548D00681B8B /* kvunicode.c */; };
+		BD1471E51AD6EFD300C18B9D /* sfts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD520F371ABB548D00681B8B /* sfts.cpp */; };
+		BD1471E61AD6EFD500C18B9D /* kvdbo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD1E7C821AAA47DD0030673D /* kvdbo.cpp */; };
+		BD1471E71AD6EFE600C18B9D /* KVOrderedDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */; };
+		BD1471E81AD6EFE800C18B9D /* KVDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */; };
+		BD1471E91AD6EFEA00C18B9D /* KVIndexer.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104611ABE82B000FD6FF6 /* KVIndexer.m */; };
+		BD1471EB1AD6F02600C18B9D /* KVIndexer.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104601ABE82B000FD6FF6 /* KVIndexer.h */; };
+		BD1471EC1AD6F02800C18B9D /* KVDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */; };
+		BD1471ED1AD6F02A00C18B9D /* KVOrderedDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */; };
+		BD1471EE1AD6F02C00C18B9D /* KVDBTypes.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1471E11AD6EFC100C18B9D /* KVDBTypes.h */; };
+		BD1471EF1AD6F03000C18B9D /* sfts.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD520F381ABB548D00681B8B /* sfts.h */; };
+		BD1471F01AD6F03A00C18B9D /* kvdb-types.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1471EA1AD6F00600C18B9D /* kvdb-types.h */; };
+		BD1471F11AD6F0B700C18B9D /* KVIndexer.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104601ABE82B000FD6FF6 /* KVIndexer.h */; };
+		BD1471F21AD6F0B900C18B9D /* KVDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */; };
+		BD1471F31AD6F0BB00C18B9D /* KVOrderedDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */; };
+		BD1471F41AD6F0BD00C18B9D /* KVDBTypes.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1471E11AD6EFC100C18B9D /* KVDBTypes.h */; };
+		BD1471F51AD6F0C800C18B9D /* kvdb-types.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1471EA1AD6F00600C18B9D /* kvdb-types.h */; };
+		BD1471F71AD6F0DA00C18B9D /* sfts.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD520F381ABB548D00681B8B /* sfts.h */; };
+		BD1471F81AD6F0E000C18B9D /* kvdbo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1E7C831AAA47DD0030673D /* kvdbo.h */; };
+		BD1471F91AD6F11000C18B9D /* lz4.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB104791AC4D55E00FD6FF6 /* lz4.c */; };
+		BD1471FA1AD6F11200C18B9D /* lz4frame.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047B1AC4D55E00FD6FF6 /* lz4frame.c */; };
+		BD1471FB1AD6F11500C18B9D /* lz4hc.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047E1AC4D55E00FD6FF6 /* lz4hc.c */; };
+		BD1471FC1AD6F11800C18B9D /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB104821AC4D55E00FD6FF6 /* xxhash.c */; };
 		BD1E7C841AAA47DD0030673D /* kvdbo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BD1E7C821AAA47DD0030673D /* kvdbo.cpp */; };
 		BD520F301ABAB24E00681B8B /* kvdbo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1E7C831AAA47DD0030673D /* kvdbo.h */; };
 		BD520F391ABB548D00681B8B /* ConvertUTF.c in Sources */ = {isa = PBXBuildFile; fileRef = BD520F311ABB548D00681B8B /* ConvertUTF.c */; };
@@ -19,11 +44,6 @@
 		BDB104621ABE82B000FD6FF6 /* KVIndexer.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104611ABE82B000FD6FF6 /* KVIndexer.m */; };
 		BDB104691ABE82CB00FD6FF6 /* KVDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */; };
 		BDB1046C1ABE82D900FD6FF6 /* KVOrderedDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */; };
-		BDB1046D1ABE90BC00FD6FF6 /* sfts.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD520F381ABB548D00681B8B /* sfts.h */; };
-		BDB1046E1ABE90BF00FD6FF6 /* kvdbo.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BD1E7C831AAA47DD0030673D /* kvdbo.h */; };
-		BDB1046F1ABE90C300FD6FF6 /* KVIndexer.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104601ABE82B000FD6FF6 /* KVIndexer.h */; };
-		BDB104701ABE90C700FD6FF6 /* KVDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB104671ABE82CB00FD6FF6 /* KVDatabase.h */; };
-		BDB104711ABE90C900FD6FF6 /* KVOrderedDatabase.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */; };
 		BDB104841AC4D55E00FD6FF6 /* lz4.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB104791AC4D55E00FD6FF6 /* lz4.c */; };
 		BDB104851AC4D55E00FD6FF6 /* lz4frame.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047B1AC4D55E00FD6FF6 /* lz4frame.c */; };
 		BDB104861AC4D55E00FD6FF6 /* lz4hc.c in Sources */ = {isa = PBXBuildFile; fileRef = BDB1047E1AC4D55E00FD6FF6 /* lz4hc.c */; };
@@ -41,7 +61,6 @@
 		C66823A01763EA77000C603C /* kvdb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66823601763C472000C603C /* kvdb.cpp */; };
 		C66823A51763EA77000C603C /* kvprime.c in Sources */ = {isa = PBXBuildFile; fileRef = C66823651763C472000C603C /* kvprime.c */; };
 		C66823A71763EA77000C603C /* kvtable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66823671763C472000C603C /* kvtable.cpp */; };
-		C676520B18FF9E61009619BE /* kvdb.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = C66823611763C472000C603C /* kvdb.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -51,7 +70,14 @@
 			dstPath = include/kvdb;
 			dstSubfolderSpec = 16;
 			files = (
+				BD1471F11AD6F0B700C18B9D /* KVIndexer.h in CopyFiles */,
+				BD1471F21AD6F0B900C18B9D /* KVDatabase.h in CopyFiles */,
+				BD1471F31AD6F0BB00C18B9D /* KVOrderedDatabase.h in CopyFiles */,
+				BD1471F41AD6F0BD00C18B9D /* KVDBTypes.h in CopyFiles */,
+				BD1471F51AD6F0C800C18B9D /* kvdb-types.h in CopyFiles */,
 				C618377C1763F6B8009E00E4 /* kvdb.h in CopyFiles */,
+				BD1471F71AD6F0DA00C18B9D /* sfts.h in CopyFiles */,
+				BD1471F81AD6F0E000C18B9D /* kvdbo.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,8 +87,14 @@
 			dstPath = include/kvdb;
 			dstSubfolderSpec = 16;
 			files = (
+				BD1471EB1AD6F02600C18B9D /* KVIndexer.h in CopyFiles */,
+				BD1471EC1AD6F02800C18B9D /* KVDatabase.h in CopyFiles */,
+				BD1471ED1AD6F02A00C18B9D /* KVOrderedDatabase.h in CopyFiles */,
+				BD1471EE1AD6F02C00C18B9D /* KVDBTypes.h in CopyFiles */,
 				C618377F1763F6CC009E00E4 /* kvdb.h in CopyFiles */,
 				BD520F301ABAB24E00681B8B /* kvdbo.h in CopyFiles */,
+				BD1471EF1AD6F03000C18B9D /* sfts.h in CopyFiles */,
+				BD1471F01AD6F03A00C18B9D /* kvdb-types.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,24 +107,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
-		C676520A18FF9E4E009619BE /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = include;
-			dstSubfolderSpec = 16;
-			files = (
-				C676520B18FF9E61009619BE /* kvdb.h in CopyFiles */,
-				BDB1046D1ABE90BC00FD6FF6 /* sfts.h in CopyFiles */,
-				BDB1046E1ABE90BF00FD6FF6 /* kvdbo.h in CopyFiles */,
-				BDB1046F1ABE90C300FD6FF6 /* KVIndexer.h in CopyFiles */,
-				BDB104701ABE90C700FD6FF6 /* KVDatabase.h in CopyFiles */,
-				BDB104711ABE90C900FD6FF6 /* KVOrderedDatabase.h in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BD1471E11AD6EFC100C18B9D /* KVDBTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KVDBTypes.h; sourceTree = "<group>"; };
+		BD1471EA1AD6F00600C18B9D /* kvdb-types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "kvdb-types.h"; sourceTree = "<group>"; };
 		BD1E7C821AAA47DD0030673D /* kvdbo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kvdbo.cpp; sourceTree = "<group>"; };
 		BD1E7C831AAA47DD0030673D /* kvdbo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kvdbo.h; sourceTree = "<group>"; };
 		BD520F311ABB548D00681B8B /* ConvertUTF.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ConvertUTF.c; sourceTree = "<group>"; };
@@ -179,6 +198,7 @@
 				BDB104681ABE82CB00FD6FF6 /* KVDatabase.m */,
 				BDB1046A1ABE82D900FD6FF6 /* KVOrderedDatabase.h */,
 				BDB1046B1ABE82D900FD6FF6 /* KVOrderedDatabase.m */,
+				BD1471E11AD6EFC100C18B9D /* KVDBTypes.h */,
 			);
 			name = objc;
 			path = ../objc;
@@ -226,6 +246,7 @@
 		C668235A1763C472000C603C /* src */ = {
 			isa = PBXGroup;
 			children = (
+				BD1471EA1AD6F00600C18B9D /* kvdb-types.h */,
 				BD520F311ABB548D00681B8B /* ConvertUTF.c */,
 				BD520F321ABB548D00681B8B /* ConvertUTF.h */,
 				BD520F3D1ABBE79C00681B8B /* ConvertUTFNamespace.h */,
@@ -281,10 +302,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C66823571763C246000C603C /* Build configuration list for PBXNativeTarget "kvdb" */;
 			buildPhases = (
-				C676520A18FF9E4E009619BE /* CopyFiles */,
+				C618377E1763F6C3009E00E4 /* CopyFiles */,
 				C668234F1763C246000C603C /* Sources */,
 				C66823501763C246000C603C /* Frameworks */,
-				C618377E1763F6C3009E00E4 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -316,9 +336,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C66823981763EA47000C603C /* Build configuration list for PBXNativeTarget "kvdb-ios" */;
 			buildPhases = (
+				C618377B1763F6AE009E00E4 /* CopyFiles */,
 				C66823891763EA47000C603C /* Sources */,
 				C668238A1763EA47000C603C /* Frameworks */,
-				C618377B1763F6AE009E00E4 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -351,8 +371,8 @@
 			projectRoot = "";
 			targets = (
 				C66823521763C246000C603C /* kvdb */,
-				C668237E1763C48F000C603C /* kvdbtest */,
 				C668238C1763EA47000C603C /* kvdb-ios */,
+				C668237E1763C48F000C603C /* kvdbtest */,
 			);
 		};
 /* End PBXProject section */
@@ -394,11 +414,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BD1471F91AD6F11000C18B9D /* lz4.c in Sources */,
+				BD1471E71AD6EFE600C18B9D /* KVOrderedDatabase.m in Sources */,
+				BD1471E61AD6EFD500C18B9D /* kvdbo.cpp in Sources */,
 				C668239B1763EA77000C603C /* kvassert.c in Sources */,
+				BD1471E91AD6EFEA00C18B9D /* KVIndexer.m in Sources */,
 				C668239D1763EA77000C603C /* kvblock.cpp in Sources */,
+				BD1471FA1AD6F11200C18B9D /* lz4frame.c in Sources */,
+				BD1471E51AD6EFD300C18B9D /* sfts.cpp in Sources */,
 				C66823A01763EA77000C603C /* kvdb.cpp in Sources */,
 				C66823A51763EA77000C603C /* kvprime.c in Sources */,
+				BD1471E41AD6EFD100C18B9D /* kvunicode.c in Sources */,
 				C66823A71763EA77000C603C /* kvtable.cpp in Sources */,
+				BD1471FC1AD6F11800C18B9D /* xxhash.c in Sources */,
+				BD1471E81AD6EFE800C18B9D /* KVDatabase.m in Sources */,
+				BD1471FB1AD6F11500C18B9D /* lz4hc.c in Sources */,
+				BD1471E21AD6EFC500C18B9D /* ConvertUTF.c in Sources */,
+				BD1471E31AD6EFC900C18B9D /* kvserialization.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

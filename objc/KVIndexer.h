@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+#import <kvdb/KVDBTypes.h>
+
 typedef enum {
     KVIndexerSearchKindPrefix, // Search documents that has strings that start with the given token.
     KVIndexerSearchKindSubstr, // Search documents that has strings that contain the given token.
@@ -13,6 +15,9 @@ typedef enum {
 
 // Create a full text indexer.
 - (id) initWithPath:(NSString *)path;
+
+// Returns the path of the indexer.
+- (NSString *) path;
 
 // Opens the indexer.
 - (BOOL) open;

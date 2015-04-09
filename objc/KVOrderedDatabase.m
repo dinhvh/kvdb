@@ -15,6 +15,7 @@ enum {
 
 @implementation KVOrderedDatabase {
     kvdbo * _db;
+    NSString * _path;
 }
 
 - (id) initWithPath:(NSString *)path
@@ -30,6 +31,11 @@ enum {
     kvdbo_free(_db);
 }
 
+- (NSString *) path
+{
+    return _path;
+}
+
 - (BOOL) open
 {
     int r = kvdbo_open(_db);
@@ -43,17 +49,6 @@ enum {
 {
     kvdbo_close(_db);
 }
-
-/*
-- (BOOL) flush
-{
-    int r = kvdbo_flush(_db);
-    if (r < 0) {
-        return NO;
-    }
-    return YES;
-}
- */
 
 - (NSData *) dataForKey:(NSString *)key
 {
