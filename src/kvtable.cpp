@@ -18,7 +18,7 @@
 #include "kvpaddingutils.h"
 #include "kvassert.h"
 
-static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, int is_first);
+static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, uint64_t filesize, int is_first);
 static int mapping_setup(struct kvdb_mapping * mapping, int fd, off_t offset, size_t size);
 static void mapping_unsetup(struct kvdb_mapping * mapping);
 static void unmap_table(struct kvdb_table * table);
@@ -38,9 +38,9 @@ int kv_table_header_write(kvdb * db, uint64_t table_start, uint64_t maxcount)
     return KVDB_ERROR_NONE;
 }
 
-int kv_tables_setup(kvdb * db)
+int kv_tables_setup(kvdb * db, uint64_t filesize)
 {
-    return map_table(db, &db->kv_first_table, KV_HEADER_SIZE, 1);
+    return map_table(db, &db->kv_first_table, KV_HEADER_SIZE, filesize, 1);
 }
 
 void kv_tables_unsetup(kvdb * db)
@@ -67,7 +67,7 @@ uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
     return offset;
 }
 
-static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, int is_first)
+static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, uint64_t filesize, int is_first)
 {
     struct kvdb_table * table;
     uint64_t maxcount;
@@ -91,6 +91,9 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     }
     maxcount = bytes_to_h64(data);
     uint64_t mapping_size = pre_page_align_size + KV_TABLE_SIZE(maxcount);
+    if (offset + KV_TABLE_SIZE(maxcount) > filesize) {
+        return KVDB_ERROR_IO;
+    }
     r = mapping_setup(&table->kv_mapping, db->kv_fd, offset - pre_page_align_size, (size_t) mapping_size);
     if (r < 0) {
         return r;
@@ -108,7 +111,7 @@ static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, in
     * result = table;
     
     if (* table->kv_next_table_offset != 0) {
-        r = map_table(db, &table->kv_next_table, ntoh64(* table->kv_next_table_offset), 0);
+        r = map_table(db, &table->kv_next_table, ntoh64(* table->kv_next_table_offset), filesize, 0);
         if (r < 0) {
             return r;
         }
@@ -157,7 +160,7 @@ static void mapping_unsetup(struct kvdb_mapping * mapping)
     mapping->kv_size = 0;
 }
 
-int kv_map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset)
+int kv_map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, uint64_t filesize)
 {
-    return map_table(db, result, offset, 0);
+    return map_table(db, result, offset, filesize, 0);
 }

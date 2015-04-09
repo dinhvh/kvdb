@@ -21,9 +21,9 @@ extern "C" {
 
 int kv_table_header_write(kvdb * db, uint64_t table_start, uint64_t maxcount);
 uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result);
-int kv_map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset);
+int kv_map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, uint64_t filesize);
 
-int kv_tables_setup(kvdb * db);
+int kv_tables_setup(kvdb * db, uint64_t filesize);
 void kv_tables_unsetup(kvdb * db);
 
 #ifdef __cplusplus

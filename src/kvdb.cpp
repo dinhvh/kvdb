@@ -47,7 +47,7 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
 static void map_new_tables(kvdb * db);
 static int write_journal(const char * filename, std::map<uint64_t, std::string> & writes);
 static int kvdb_create(kvdb * db);
-static int kvdb_setup(kvdb * db, int create_file);
+static int kvdb_setup(kvdb * db, int create_file, uint64_t filesize);
 
 kvdb * kvdb_new(const char * filename)
 {
@@ -149,7 +149,7 @@ int kvdb_open(kvdb * db)
         }
     }
     
-    r = kvdb_setup(db, create_file);
+    r = kvdb_setup(db, create_file, stat_buf.st_size);
     if (r < 0) {
         res = r;
         goto error;
@@ -218,7 +218,7 @@ static int kvdb_create(kvdb * db)
     return KVDB_ERROR_NONE;
 }
 
-static int kvdb_setup(kvdb * db, int create_file)
+static int kvdb_setup(kvdb * db, int create_file, uint64_t filesize)
 {
     char data[4 + 4 + 8 + 1];
     char marker[4];
@@ -247,7 +247,13 @@ static int kvdb_setup(kvdb * db, int create_file)
     db->kv_firstmaxcount = firstmaxcount;
     db->kv_compression_type = compression_type;
     
-    r = kv_tables_setup(db);
+    if (create_file) {
+        // if the file has just been created, the size will be zero.
+        // we need to adjust it to match the setup.
+        filesize = KV_HEADER_SIZE + KV_TABLE_SIZE(firstmaxcount);
+    }
+    
+    r = kv_tables_setup(db, filesize);
     if (r < 0) {
         return KVDB_ERROR_IO;
     }
@@ -482,8 +488,8 @@ static void map_new_tables(kvdb * db)
         }
     }
     if (tables_count < db->kv_transaction->tables.size()) {
-        fprintf(stderr, "adding new table %i %llu\n", tables_count, db->kv_transaction->tables[tables_count].offset);
-        int r = kv_map_table(db, &current_table->kv_next_table, db->kv_transaction->tables[tables_count].offset);
+        //fprintf(stderr, "adding new table %i %llu\n", tables_count, db->kv_transaction->tables[tables_count].offset);
+        int r = kv_map_table(db, &current_table->kv_next_table, db->kv_transaction->tables[tables_count].offset, db->kv_transaction->filesize);
         kv_assert(r == KVDB_ERROR_NONE);
     }
 }
