@@ -377,7 +377,7 @@ static int remove_docid_in_word(sfts * index, std::string word, uint64_t doc)
     std::string buffer;
     size_t position = 0;
     position = kv_decode_uint64(str, position, &wordid);
-    while (position < buffer.size()) {
+    while (position < str.size()) {
         uint64_t current_docid;
         position = kv_decode_uint64(str, position, &current_docid);
         if (current_docid != doc) {
