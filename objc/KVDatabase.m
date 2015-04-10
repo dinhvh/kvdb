@@ -51,11 +51,11 @@ enum {
     char * value = NULL;
     size_t value_size;
     int code = kvdb_get(_db, cKey, strlen(cKey), &value, &value_size);
-    if (code == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error reading key \"%@\"", self, key);
+    if (code == KVDB_ERROR_NOT_FOUND) {
         return nil;
     }
     else if (code < 0) {
+        NSLog(@"[%@]: Error %i reading key \"%@\"", self, code, key);
         return nil;
     }
     else {
@@ -67,11 +67,8 @@ enum {
 {
     const char * cKey = [key UTF8String];
     int code = kvdb_set(_db, cKey, strlen(cKey), [data bytes], [data length]);
-    if (code == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error writing key \"%@\"", self, key);
-        return NO;
-    }
-    else if (code < 0) {
+    if (code < 0) {
+        NSLog(@"[%@]: Error %i while writing key \"%@\"", self, code, key);
         return NO;
     }
     else {
@@ -83,8 +80,11 @@ enum {
 {
     const char * cKey = [key UTF8String];
     int code = kvdb_delete(_db, cKey, strlen(cKey));
-    if (code == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error removing key \"%@\"", self, key);
+    if (code == KVDB_ERROR_NOT_FOUND) {
+        // do nothing
+    }
+    else if (code < 0) {
+        NSLog(@"[%@]: Error %i while removing key \"%@\"", self, code, key);
     }
 }
 

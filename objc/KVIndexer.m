@@ -62,11 +62,8 @@ enum {
     buffer[[string length]] = 0;
     int r = sfts_u_set(_db, docID, buffer);
     free(buffer);
-    if (r == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error indexing document \"%llu\"", self, (unsigned long long) docID);
-        return NO;
-    }
-    else if (r < 0) {
+    if (r < 0) {
+        NSLog(@"[%@]: Error %i while indexing document \"%llu\"", self, r, (unsigned long long) docID);
         return NO;
     }
     else {
@@ -88,11 +85,8 @@ enum {
         free(table[i]);
     }
     free(table);
-    if (r == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error indexing document \"%llu\"", self, (unsigned long long) docID);
-        return NO;
-    }
-    else if (r < 0) {
+    if (r < 0) {
+        NSLog(@"[%@]: Error %i while indexing document \"%llu\"", self, r, (unsigned long long) docID);
         return NO;
     }
     else {
@@ -103,8 +97,11 @@ enum {
 - (void) removeDocID:(uint64_t)docID
 {
     int r = sfts_remove(_db, docID);
-    if (r == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error removing indexed document \"%llu\"", self, (unsigned long long) docID);
+    if (r == KVDB_ERROR_NOT_FOUND) {
+        // do nothing
+    }
+    else if (r < 0) {
+        NSLog(@"[%@]: Error %i while removing document \"%llu\"", self, r, docID);
     }
 }
 
@@ -116,14 +113,11 @@ enum {
     [token getCharacters:buffer range:NSMakeRange(0, [token length])];
     int r = sfts_u_search(_db, buffer, (sfts_search_kind) kind, &docids, &count);
     free(buffer);
-    if (r == KVDBIOErrorCode) {
-        NSLog(@"[%@]: I/O error searching for token \"%@\"", self, token);
+    if (r < 0) {
+        NSLog(@"[%@]: Error %i while searching for token \"%@\"", self, r, token);
         return nil;
     }
-    else if (r < 0) {
-        return nil;
-    }
-    
+
     NSMutableArray * result = [NSMutableArray array];
     for(size_t i = 0 ; i < count ; i ++) {
         [result addObject:[NSNumber numberWithUnsignedLongLong:docids[i]]];
