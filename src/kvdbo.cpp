@@ -179,12 +179,12 @@ int kvdbo_set(kvdbo * db,
         // invalid key.
         return KVDB_ERROR_KEY_NOT_ALLOWED;
     }
-    db->pending_keys_delete.erase(key_str);
-    db->pending_keys.insert(key_str);
     r = kvdb_set(db->db, key, key_size, value, value_size);
     if (r < 0) {
         return r;
     }
+    db->pending_keys_delete.erase(key_str);
+    db->pending_keys.insert(key_str);
     db->implicit_transaction_op_count ++;
     return KVDB_ERROR_NONE;
 }
@@ -248,6 +248,7 @@ int kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
     uint64_t node_id = iterator->db->nodes_ids[0];
     int r = iterator_load_node(iterator, node_id);
     if (r < 0) {
+        iterator->key_index = -1;
         return r;
     }
     iterator->node_index = 0;
@@ -263,6 +264,7 @@ int kvdbo_iterator_seek_last(kvdbo_iterator * iterator)
     uint64_t node_id = iterator->db->nodes_ids[iterator->db->nodes_ids.size() - 1];
     int r = iterator_load_node(iterator, node_id);
     if (r < 0) {
+        iterator->key_index = -1;
         return r;
     }
     iterator->node_index = (unsigned int) (iterator->db->nodes_ids.size() - 1);
@@ -282,6 +284,7 @@ int kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
     uint64_t node_id = iterator->db->nodes_ids[idx];
     int r = iterator_load_node(iterator, node_id);
     if (r < 0) {
+        iterator->key_index = -1;
         return r;
     }
     iterator->node_index = idx;
@@ -306,6 +309,7 @@ int kvdbo_iterator_next(kvdbo_iterator * iterator)
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
     int r = iterator_load_node(iterator, node_id);
     if (r < 0) {
+        iterator->key_index = -1;
         return r;
     }
     iterator->key_index = 0;
@@ -329,6 +333,7 @@ int kvdbo_iterator_previous(kvdbo_iterator * iterator)
     uint64_t node_id = iterator->db->nodes_ids[iterator->node_index];
     int r = iterator_load_node(iterator, node_id);
     if (r < 0) {
+        iterator->key_index = -1;
         return r;
     }
     iterator->key_index = (unsigned int) (iterator->keys.size() - 1);

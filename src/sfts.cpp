@@ -723,7 +723,8 @@ void sfts_transaction_abort(sfts * index)
 int sfts_transaction_commit(sfts * index)
 {
     if ((index->sfts_buffer.size() == 0) && (index->sfts_buffer_dirty.size() == 0) &&
-        (index->sfts_deleted.size() == 0)) {
+        (index->sfts_deleted.size() == 0) && (index->words_buffer.size() == 0) &&
+        (!index->has_next_word_id)) {
         sfts_transaction_abort(index);
         return KVDB_ERROR_NONE;
     }
@@ -737,6 +738,11 @@ int sfts_transaction_commit(sfts * index)
     }
     r = kvdbo_transaction_commit(index->sfts_db);
     if (r < 0) {
+        index->has_next_word_id = false;
+        index->words_buffer.clear();
+        index->sfts_buffer.clear();
+        index->sfts_buffer_dirty.clear();
+        index->sfts_deleted.clear();
         return r;
     }
     return KVDB_ERROR_NONE;
