@@ -512,8 +512,10 @@ static int write_journal(const char * filename, std::map<uint64_t, std::string> 
     journal_size = 8; // header size: marker + checksum.
     it = writes.begin();
     while (it != writes.end()) {
-        journal_size += sizeof(uint64_t);
-        journal_size += sizeof(uint16_t);
+        std::string item;
+        kv_encode_uint64(item, it->first);
+        kv_encode_uint64(item, it->second.length());
+        journal_size += item.length();
         journal_size += it->second.length();
         it ++;
     }
@@ -532,13 +534,12 @@ static int write_journal(const char * filename, std::map<uint64_t, std::string> 
     journal_current = ((char *) mapping) + 8;
     it = writes.begin();
     while (it != writes.end()) {
-        uint64_t offset = hton64(it->first);
-        uint16_t size = htons(it->second.length());
+        std::string item;
+        kv_encode_uint64(item, it->first);
+        kv_encode_uint64(item, it->second.length());
         const char * data = it->second.c_str();
-        memcpy(journal_current, &offset, sizeof(offset));
-        journal_current += sizeof(uint64_t);
-        memcpy(journal_current, &size, sizeof(size));
-        journal_current += sizeof(uint16_t);
+        memcpy(journal_current, item.c_str(), item.length());
+        journal_current += item.length();
         memcpy(journal_current, data, it->second.length());
         journal_current += it->second.length();
         it ++;
@@ -642,15 +643,22 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
     // 3. write changes to disk.
     while (remaining > 0) {
         uint64_t offset;
-        uint16_t data_size;
+        uint64_t data_size;
         char * data;
+        size_t position;
+        std::string item;
         
-        offset = ntoh64(* (uint64_t *) journal_current);
-        journal_current += 8;
-        remaining -= 8;
-        data_size = ntohs(* (uint16_t *) journal_current);
-        journal_current += 2;
-        remaining -= 2;
+        if (remaining >= 20) {
+            item.append(journal_current, 20);
+        }
+        else {
+            item.append(journal_current, remaining);
+        }
+        position = 0;
+        position = kv_decode_uint64(item, position, &offset);
+        position = kv_decode_uint64(item, position, &data_size);
+        journal_current += position;
+        remaining -= position;
         data = journal_current;
         journal_current += data_size;
         remaining -= data_size;
