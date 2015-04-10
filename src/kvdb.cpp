@@ -116,7 +116,6 @@ int kvdb_open(kvdb * db)
     
     db->kv_fd = open(db->kv_filename, O_RDWR | O_CREAT, 0600);
     if (db->kv_fd == -1) {
-        fprintf(stderr, "open failed\n");
         res = KVDB_ERROR_IO;
         goto error;
     }
@@ -132,8 +131,20 @@ int kvdb_open(kvdb * db)
         // Journal corrupted. A transaction started and was not finished properyly.
         // We can discard it.
         // The two following calls will truncate the database file to the correct size.
-        kvdb_transaction_begin(db);
-        kvdb_transaction_abort(db);
+        uint64_t filesize;
+        ssize_t count = pread(db->kv_fd, &filesize, sizeof(uint64_t), KV_HEADER_FILESIZE_OFFSET);
+        if (count <= 0) {
+            res = KVDB_ERROR_IO;
+            goto error;
+        }
+        filesize = ntoh64(filesize);
+        if (filesize < stat_buf.st_size) {
+            r = ftruncate(db->kv_fd, filesize);
+            if (r < 0) {
+                res = KVDB_ERROR_IO;
+                goto error;
+            }
+        }
     }
     else if (r < 0) {
         res = r;
@@ -157,7 +168,7 @@ int kvdb_open(kvdb * db)
     
     db->kv_opened = true;
     
-    return 0;
+    return KVDB_ERROR_NONE;
     
 error:
     if (db->kv_fd != -1) {
@@ -694,6 +705,8 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
     }
     
     munmap(journal, stat_buf.st_size);
+    journal = NULL;
+
     // 4. fsync kvdb
     r = fsync(db->kv_fd);
     if (r < 0) {
