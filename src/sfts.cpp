@@ -17,9 +17,9 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-static void db_put(sfts * index, std::string & key, std::string & value);
-static int db_get(sfts * index, std::string & key, std::string * p_value);
-static void db_delete(sfts * index, std::string & key);
+static void db_put(sfts * index, const std::string & key, const std::string & value);
+static int db_get(sfts * index, const std::string & key, std::string * p_value);
+static void db_delete(sfts * index, const std::string & key);
 static int db_flush(sfts * index);
 static int tokenize(sfts * index, uint64_t doc, const UChar * text);
 static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
@@ -31,6 +31,12 @@ static void start_implicit_transaction_if_needed(sfts * index);
 // /[word id] -> word
 // word -> [word id], [docs ids]
 
+struct word_docsids {
+    uint64_t wordid;
+    // empty docsids means that we need to remove this entry.
+    std::unordered_set<uint64_t> docsids;
+};
+
 struct sfts {
     kvdbo * sfts_db;
     bool sfts_opened;
@@ -40,6 +46,13 @@ struct sfts {
     std::unordered_set<std::string> sfts_buffer_dirty;
     // identifiers of the deleted buffers.
     std::unordered_set<std::string> sfts_deleted;
+    
+    // word -> docs ids
+    std::unordered_map<std::string, word_docsids> words_buffer;
+    // next word id
+    bool has_next_word_id;
+    uint64_t next_word_id;
+    
     // whether a transaction has been opened.
     bool in_transaction;
     // if a transaction is opened, whether it's an implicit transaction.
@@ -56,6 +69,8 @@ sfts * sfts_new(const char * filename)
     result->in_transaction = false;
     result->implicit_transaction = false;
     result->implicit_transaction_op_count = 0;
+    result->has_next_word_id = false;
+    result->next_word_id = 0;
     return result;
 }
 
@@ -294,14 +309,30 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
     std::string value;
     uint64_t wordid;
     
-    //fprintf(stderr, "adding word: %s\n", word);
+    std::unordered_map<std::string, word_docsids>::iterator iterator = index->words_buffer.find(word_str);
+    if (iterator != index->words_buffer.end()) {
+        iterator->second.docsids.insert(doc);
+        wordsids_set.insert(iterator->second.wordid);
+        return KVDB_ERROR_NONE;
+    }
     
     int r = db_get(index, word_str, &value);
     if (r == KVDB_ERROR_NONE) {
         // Adding doc id to existing entry.
-        kv_decode_uint64(value, 0, &wordid);
-        kv_encode_uint64(value, doc);
-        db_put(index, word_str, value);
+        word_docsids item;
+        std::pair<std::unordered_map<std::string, word_docsids>::iterator, bool> insert_result = index->words_buffer.insert(std::pair<std::string, word_docsids>(word_str, item));
+        iterator = insert_result.first;
+        size_t position = 0;
+        position = kv_decode_uint64(value, position, &wordid);
+        iterator->second.wordid = wordid;
+        while (position < value.size()) {
+            uint64_t current_docid;
+            position = kv_decode_uint64(value, position, &current_docid);
+            iterator->second.docsids.insert(current_docid);
+        }
+        iterator->second.docsids.insert(doc);
+        wordsids_set.insert(wordid);
+        return KVDB_ERROR_NONE;
     }
     else if (r == KVDB_ERROR_NOT_FOUND) {
         // Not found.
@@ -310,44 +341,45 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
         // store word with new id
         
         // read next word it
-        std::string str;
-        std::string nextwordidkey(".");
-        int r = db_get(index, nextwordidkey, &str);
-        if (r == KVDB_ERROR_NOT_FOUND) {
-            // normal situation, create the nextwordid key to store the
-            // current value.
-            wordid = 0;
-        }
-        else if (r < 0) {
-            return r;
+        if (index->has_next_word_id) {
+            wordid = index->next_word_id;
+            index->next_word_id ++;
         }
         else {
-            kv_decode_uint64(str, 0, &wordid);
+            std::string str;
+            std::string nextwordidkey(".");
+            int r = db_get(index, nextwordidkey, &str);
+            if (r == KVDB_ERROR_NOT_FOUND) {
+                // normal situation, create the nextwordid key to store the
+                // current value.
+                wordid = 0;
+            }
+            else if (r < 0) {
+                return r;
+            }
+            else {
+                kv_decode_uint64(str, 0, &wordid);
+            }
+            index->next_word_id = wordid + 1;
+            index->has_next_word_id = true;
         }
-        
-        // write next word id
-        std::string value;
-        uint64_t next_wordid = wordid;
-        next_wordid ++;
-        kv_encode_uint64(value, next_wordid);
-        db_put(index, nextwordidkey, value);
-        
-        std::string value_str;
-        kv_encode_uint64(value_str, wordid);
-        kv_encode_uint64(value_str, doc);
-        db_put(index, word_str, value_str);
         
         std::string key("/");
         kv_encode_uint64(key, wordid);
         db_put(index, key, word_str);
+        
+        word_docsids item;
+        std::pair<std::unordered_map<std::string, word_docsids>::iterator, bool> insert_result =
+        index->words_buffer.insert(std::pair<std::string, word_docsids>(word_str, item));
+        std::unordered_map<std::string, word_docsids>::iterator iterator = insert_result.first;
+        iterator->second.wordid = wordid;
+        iterator->second.docsids.insert(doc);
+        wordsids_set.insert(wordid);
+        return KVDB_ERROR_NONE;
     }
     else {
         return r;
     }
-    
-    wordsids_set.insert(wordid);
-    
-    return KVDB_ERROR_NONE;
 }
 
 //int sfts_remove(lidx * index, uint64_t doc);
@@ -360,6 +392,8 @@ static void remove_word(sfts * index, std::string word, uint64_t wordid);
 
 int sfts_remove(sfts * index, uint64_t doc)
 {
+    start_implicit_transaction_if_needed(index);
+    
     std::string key(",");
     kv_encode_uint64(key, doc);
     std::string str;
@@ -370,6 +404,8 @@ int sfts_remove(sfts * index, uint64_t doc)
     else if (r < 0) {
         return r;
     }
+    
+    db_delete(index, key);
     
     size_t position = 0;
     while (position < str.size()) {
@@ -391,6 +427,7 @@ int sfts_remove(sfts * index, uint64_t doc)
             return r;
         }
     }
+    index->implicit_transaction_op_count ++;
     
     return KVDB_ERROR_NONE;
 }
@@ -408,37 +445,39 @@ static int get_word_for_wordid(sfts * index, uint64_t wordid, std::string & resu
 
 static int remove_docid_in_word(sfts * index, std::string word, uint64_t doc)
 {
-    std::string str;
-    int r = db_get(index, word, &str);
+    std::unordered_map<std::string, word_docsids>::iterator iterator = index->words_buffer.find(word);
+    if (iterator != index->words_buffer.end()) {
+        iterator->second.docsids.erase(doc);
+        return KVDB_ERROR_NONE;
+    }
+    
+    std::string value;
+    int r = db_get(index, word, &value);
     if (r == KVDB_ERROR_NOT_FOUND) {
         return KVDB_ERROR_NONE;
     }
-    else if (r < 0) {
-        return r;
-    }
-    
-    uint64_t wordid;
-    std::string buffer;
-    size_t position = 0;
-    position = kv_decode_uint64(str, position, &wordid);
-    while (position < str.size()) {
-        uint64_t current_docid;
-        position = kv_decode_uint64(str, position, &current_docid);
-        if (current_docid != doc) {
-            kv_encode_uint64(buffer, current_docid);
+    else if (r == KVDB_ERROR_NONE) {
+        // Adding doc id to existing entry.
+        uint64_t wordid;
+        word_docsids item;
+        std::pair<std::unordered_map<std::string, word_docsids>::iterator, bool> insert_result = index->words_buffer.insert(std::pair<std::string, word_docsids>(word, item));
+        iterator = insert_result.first;
+        size_t position = 0;
+        position = kv_decode_uint64(value, position, &wordid);
+        iterator->second.wordid = wordid;
+        while (position < value.size()) {
+            uint64_t current_docid;
+            position = kv_decode_uint64(value, position, &current_docid);
+            iterator->second.docsids.insert(current_docid);
         }
-    }
-    if (buffer.size() == 0) {
-        // remove word entry
-        remove_word(index, word, wordid);
+        iterator->second.docsids.erase(doc);
+        return KVDB_ERROR_NONE;
     }
     else {
-        // update word entry
-        db_put(index, word, buffer);
+        return r;
     }
-    
-    return KVDB_ERROR_NONE;
 }
+
 
 static void remove_word(sfts * index, std::string word, uint64_t wordid)
 {
@@ -506,7 +545,6 @@ int sfts_u_search(sfts * index, const UChar * utoken, sfts_search_kind kind,
             add_to_result = true;
         }
         else if (kind == sfts_search_kind_substr) {
-            //fprintf(stderr, "matching: %s %s\n", key_str.c_str(), transliterated);
             if (key_str.find(transliterated) != std::string::npos) {
                 add_to_result = true;
             }
@@ -564,14 +602,14 @@ int sfts_u_search(sfts * index, const UChar * utoken, sfts_search_kind kind,
     return KVDB_ERROR_NONE;
 }
 
-static void db_put(sfts * index, std::string & key, std::string & value)
+static void db_put(sfts * index, const std::string & key, const std::string & value)
 {
     index->sfts_deleted.erase(key);
     index->sfts_buffer[key] = value;
     index->sfts_buffer_dirty.insert(key);
 }
 
-static int db_get(sfts * index, std::string & key, std::string * p_value)
+static int db_get(sfts * index, const std::string & key, std::string * p_value)
 {
     if (index->sfts_deleted.find(key) != index->sfts_deleted.end()) {
         return KVDB_ERROR_NOT_FOUND;
@@ -594,7 +632,7 @@ static int db_get(sfts * index, std::string & key, std::string * p_value)
     return KVDB_ERROR_NONE;
 }
 
-static void db_delete(sfts * index, std::string & key)
+static void db_delete(sfts * index, const std::string & key)
 {
     index->sfts_deleted.insert(key);
     index->sfts_buffer_dirty.erase(key);
@@ -603,6 +641,34 @@ static void db_delete(sfts * index, std::string & key)
 
 static int db_flush(sfts * index)
 {
+    if (index->has_next_word_id) {
+        // write it.
+        std::string nextwordidkey(".");
+        std::string value;
+        kv_encode_uint64(value, index->next_word_id);
+        db_put(index, nextwordidkey, value);
+    }
+    
+    std::unordered_map<std::string, word_docsids>::iterator it = index->words_buffer.begin();
+    while (it != index->words_buffer.end()) {
+        
+        if (it->second.docsids.size() == 0) {
+            remove_word(index, it->first, it->second.wordid);
+        }
+        else {
+            std::string value_str;
+            kv_encode_uint64(value_str, it->second.wordid);
+            std::unordered_set<uint64_t>::iterator doc_it = it->second.docsids.begin();
+            while (doc_it != it->second.docsids.end()) {
+                kv_encode_uint64(value_str, * doc_it);
+                doc_it ++;
+            }
+            db_put(index, it->first, value_str);
+        }
+        
+        it ++;
+    }
+    
     if ((index->sfts_buffer_dirty.size() == 0) && (index->sfts_deleted.size() == 0)) {
         return KVDB_ERROR_NONE;
     }
@@ -626,9 +692,13 @@ static int db_flush(sfts * index)
             return r;
         }
     }
+    
     index->sfts_buffer.clear();
     index->sfts_buffer_dirty.clear();
     index->sfts_deleted.clear();
+    index->words_buffer.clear();
+    index->has_next_word_id = false;
+    
     return KVDB_ERROR_NONE;
 }
 
@@ -640,6 +710,8 @@ void sfts_transaction_begin(sfts * index)
 
 void sfts_transaction_abort(sfts * index)
 {
+    index->has_next_word_id = false;
+    index->words_buffer.clear();
     index->sfts_buffer.clear();
     index->sfts_buffer_dirty.clear();
     index->sfts_deleted.clear();
