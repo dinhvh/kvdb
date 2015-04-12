@@ -36,21 +36,21 @@ struct sfts {
     std::unordered_set<std::string> sfts_deleted;
 };
 
-sfts * sfts_new(void)
+sfts * sfts_new(const char * filename)
 {
     sfts * result = new sfts;
-    result->sfts_db = NULL;
+    result->sfts_db = kvdbo_new(filename);
     return result;
 }
 
 void sfts_free(sfts * index)
 {
+    kvdbo_free(index->sfts_db);
     free(index);
 }
 
-int sfts_open(sfts * index, const char * filename)
+int sfts_open(sfts * index)
 {
-    index->sfts_db = kvdbo_new(filename);
     kvdbo_open(index->sfts_db);
     
     return 0;
@@ -58,13 +58,8 @@ int sfts_open(sfts * index, const char * filename)
 
 void sfts_close(sfts * index)
 {
-    if (index->sfts_db == NULL) {
-        return;
-    }
     db_flush(index);
     kvdbo_close(index->sfts_db);
-    kvdbo_free(index->sfts_db);
-    index->sfts_db = NULL;
 }
 
 int sfts_flush(sfts * index)

@@ -15,13 +15,13 @@ enum {
 {
     self = [super init];
     _path = [path copy];
-    _db = sfts_new();
+    _db = sfts_new([_path fileSystemRepresentation]);
     return self;
 }
 
 - (BOOL) open
 {
-    int r = sfts_open(_db, [_path fileSystemRepresentation]);
+    int r = sfts_open(_db);
     if (r < 0) {
         return NO;
     }

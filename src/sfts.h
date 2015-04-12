@@ -27,13 +27,13 @@ typedef enum sfts_search_kind {
 } sfts_search_kind;
 
 // Create a new indexer.
-sfts * sfts_new(void);
+sfts * sfts_new(const char * filename);
 
 // Release resource of the new indexer.
 void sfts_free(sfts * index);
 
 // Open the indexer.
-int sfts_open(sfts * index, const char * filename);
+int sfts_open(sfts * index);
 
 // Close the indexer.
 void sfts_close(sfts * index);
