@@ -4,6 +4,8 @@
 #include <string.h>
 #include <pthread.h>
 
+#include "kvassert.h"
+
 #if __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -108,7 +110,7 @@ static UReplaceableCallbacks s_xrepVtable;
 static UTransliterator * s_trans = NULL;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static int s_initialized = 0;
-static int pthread_once_t s_once = PTHREAD_ONCE_INIT;
+static pthread_once_t s_once = PTHREAD_ONCE_INIT;
 
 static void kv_unicode_init(void)
 {
@@ -117,12 +119,12 @@ static void kv_unicode_init(void)
         UChar urules[1024];
         UErrorCode status = U_ZERO_ERROR;
         u_strFromUTF8(urules, sizeof(urules), NULL, "Any-Latin; NFD; Lower; [:nonspacing mark:] remove; nfc", -1, &status);
-        LIDX_ASSERT(status == U_ZERO_ERROR);
+        kv_assert(status == U_ZERO_ERROR);
         
         UParseError parseError;
         s_trans = utrans_openU(urules, -1, UTRANS_FORWARD,
                                NULL, -1, &parseError, &status);
-        LIDX_ASSERT(status == U_ZERO_ERROR);
+        kv_assert(status == U_ZERO_ERROR);
         
         InitXReplaceableCallbacks(&s_xrepVtable);
         s_initialized = 1;
@@ -231,7 +233,7 @@ char * kv_transliterate(const UChar * text, int length)
         goto free_xrep;
     }
     
-    char * result = lidx_to_utf8(xrep.text);
+    char * result = kv_to_utf8(xrep.text);
     FreeXReplaceable(&xrep);
     
     return result;

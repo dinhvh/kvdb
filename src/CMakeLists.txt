@@ -1,5 +1,5 @@
 #set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_C_FLAGS "-g -O2")
+set(CMAKE_C_FLAGS "-std=c99 -g -O2")
 IF(APPLE)
   set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ -g -O2")
 ELSE()

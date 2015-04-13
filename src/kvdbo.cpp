@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <stdlib.h>
+#include <string.h>
 
 struct kvdbo {
     // underlaying kvdb.

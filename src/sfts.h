@@ -1,6 +1,6 @@
-#ifndef LIDX_H
+#ifndef SFTS_H
 
-#define LIDX_H
+#define SFTS_H
 
 #include <inttypes.h>
 #include <stdlib.h>

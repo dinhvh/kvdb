@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 
 #include "kvdb.h"
 #include "kvtypes.h"

@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include <lz4.h>
 #include <string>
