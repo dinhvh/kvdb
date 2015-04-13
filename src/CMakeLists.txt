@@ -3,7 +3,7 @@ set(CMAKE_C_FLAGS "-std=c99 -g -O2")
 IF(APPLE)
   set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ -g -O2")
 ELSE()
-  set(CMAKE_CXX_FLAGS "-std=gnu++0x")
+  set(CMAKE_CXX_FLAGS "-std=gnu++0x -g -O2")
 ENDIF()
 
 file(GLOB_RECURSE
