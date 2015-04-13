@@ -79,7 +79,7 @@ void sfts_free(sfts * index)
         fprintf(stderr, "sfts: %s should be closed before freeing\n", sfts_get_filename(index));
     }
     kvdbo_free(index->sfts_db);
-    free(index);
+    delete index;
 }
 
 const char * sfts_get_filename(sfts * index)
