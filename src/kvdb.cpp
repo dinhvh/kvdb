@@ -44,9 +44,9 @@ static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
                      char ** p_value, size_t * p_value_size, size_t * p_free_size);
 static int kvdb_restore_journal(kvdb * db, uint64_t filesize);
 static int start_implicit_transaction_if_needed(kvdb * db);
-static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string> & writes);
+static void compute_writes_for_journal(kvdb * db, std::vector<std::pair<uint64_t, std::string>> & writes);
 static void map_new_tables(kvdb * db);
-static int write_journal(const char * filename, std::map<uint64_t, std::string> & writes);
+static int write_journal(const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes);
 static int kvdb_create(kvdb * db);
 static int kvdb_setup(kvdb * db, int create_file, uint64_t filesize);
 
@@ -350,7 +350,7 @@ int kvdb_transaction_commit(kvdb * db)
 {
     int r;
     int res = 0;
-    std::map<uint64_t, std::string> writes;
+    std::vector<std::pair<uint64_t, std::string>> writes;
     
     char * filename = (char *) alloca(strlen(db->kv_filename) + strlen(".journal") + 1);
     filename[0] = 0;
@@ -396,11 +396,16 @@ transaction_failed:
     return res;
 }
 
+static bool cmp(const std::pair<uint64_t, std::string> &a, const std::pair<uint64_t, std::string> &b)
+{
+    return a.first < b.first;
+}
+
 // compute journal, file size, tables, links for blocks, recycled blocks, changes to bloom filter => list of {offset, size, data}
-static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string> & writes)
+static void compute_writes_for_journal(kvdb * db, std::vector<std::pair<uint64_t, std::string>> & writes)
 {
     // file size.
-    writes.insert(std::pair<uint64_t, std::string>(KV_HEADER_FILESIZE_OFFSET, string_with_uint64(db->kv_transaction->filesize)));
+    writes.push_back(std::pair<uint64_t, std::string>(KV_HEADER_FILESIZE_OFFSET, string_with_uint64(db->kv_transaction->filesize)));
     // tables.
     unsigned int tables_count = 0;
     struct kvdb_table * current_table = db->kv_first_table;
@@ -409,13 +414,13 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
         current_table = current_table->kv_next_table;
     }
     for(unsigned int i = 0 ; i < db->kv_transaction->tables.size() ; i ++) {
-        writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset + 8, string_with_uint64(db->kv_transaction->tables[i].count)));
+        writes.push_back(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset + 8, string_with_uint64(db->kv_transaction->tables[i].count)));
         if (i >= tables_count - 1) {
             if (i == db->kv_transaction->tables.size() - 1) {
-                writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset, string_with_uint64(0)));
+                writes.push_back(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset, string_with_uint64(0)));
             }
             else {
-                writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset, string_with_uint64(db->kv_transaction->tables[i + 1].offset)));
+                writes.push_back(std::pair<uint64_t, std::string>(db->kv_transaction->tables[i].offset, string_with_uint64(db->kv_transaction->tables[i + 1].offset)));
             }
         }
     }
@@ -429,15 +434,15 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
             recycled_data[i] = hton64(db->kv_transaction->first_recycled_blocks[i]);
         }
     }
-    writes.insert(std::pair<uint64_t, std::string>(KV_HEADER_FREELIST_OFFSET, std::string((char *) recycled_data, sizeof(recycled_data))));
+    writes.push_back(std::pair<uint64_t, std::string>(KV_HEADER_FREELIST_OFFSET, std::string((char *) recycled_data, sizeof(recycled_data))));
     // links for recycled blocks.
     for(unsigned int i = 0 ; i < 64 ; i ++) {
         for(unsigned int k = 0 ; k < db->kv_transaction->recycled_blocks[i].size() ; k ++) {
             if (k == db->kv_transaction->recycled_blocks[i].size() - 1) {
-                writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->recycled_blocks[i][k], string_with_uint64(db->kv_transaction->first_recycled_blocks[i])));
+                writes.push_back(std::pair<uint64_t, std::string>(db->kv_transaction->recycled_blocks[i][k], string_with_uint64(db->kv_transaction->first_recycled_blocks[i])));
             }
             else {
-                writes.insert(std::pair<uint64_t, std::string>(db->kv_transaction->recycled_blocks[i][k], string_with_uint64(db->kv_transaction->recycled_blocks[i][k + 1])));
+                writes.push_back(std::pair<uint64_t, std::string>(db->kv_transaction->recycled_blocks[i][k], string_with_uint64(db->kv_transaction->recycled_blocks[i][k + 1])));
             }
         }
     }
@@ -448,17 +453,17 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
         while (it != db->kv_transaction->items.end()) {
             uint64_t items_offset = db->kv_transaction->tables[it->second.table_index].offset + KV_TABLE_ITEMS_OFFSET_OFFSET(db->kv_transaction->tables[it->second.table_index].maxcount);
             if (it->second.block_offsets.size() == 0) {
-                writes.insert(std::pair<uint64_t, std::string>(items_offset + 8 * it->second.cell_index, string_with_uint64(0)));
+                writes.push_back(std::pair<uint64_t, std::string>(items_offset + 8 * it->second.cell_index, string_with_uint64(0)));
             }
             else {
-                writes.insert(std::pair<uint64_t, std::string>(items_offset + 8 * it->second.cell_index, string_with_uint64(it->second.block_offsets[0])));
+                writes.push_back(std::pair<uint64_t, std::string>(items_offset + 8 * it->second.cell_index, string_with_uint64(it->second.block_offsets[0])));
             }
             for(unsigned int k = 0 ; k < it->second.block_offsets.size() ; k ++) {
                 if (k == it->second.block_offsets.size() - 1) {
-                    writes.insert(std::pair<uint64_t, std::string>(it->second.block_offsets[k], string_with_uint64(0)));
+                    writes.push_back(std::pair<uint64_t, std::string>(it->second.block_offsets[k], string_with_uint64(0)));
                 }
                 else {
-                    writes.insert(std::pair<uint64_t, std::string>(it->second.block_offsets[k], string_with_uint64(it->second.block_offsets[k + 1])));
+                    writes.push_back(std::pair<uint64_t, std::string>(it->second.block_offsets[k], string_with_uint64(it->second.block_offsets[k + 1])));
                 }
             }
             it ++;
@@ -472,11 +477,11 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
         while (it != db->kv_transaction->tables[i].bloom_table.end()) {
             uint64_t offset = db->kv_transaction->tables[i].offset + KV_TABLE_BLOOM_FILTER_OFFSET + it->first;
             if (i >= tables_count) {
-                writes.insert(std::pair<uint64_t, std::string>(offset, std::string((char *) &(it->second), 1)));
+                writes.push_back(std::pair<uint64_t, std::string>(offset, std::string((char *) &(it->second), 1)));
             }
             else {
                 uint8_t value = current_table->kv_bloom_filter[it->first] | it->second;
-                writes.insert(std::pair<uint64_t, std::string>(offset, std::string((char *) &value, 1)));
+                writes.push_back(std::pair<uint64_t, std::string>(offset, std::string((char *) &value, 1)));
             }
             it ++;
         }
@@ -484,6 +489,8 @@ static void compute_writes_for_journal(kvdb * db, std::map<uint64_t, std::string
             current_table = current_table->kv_next_table;
         }
     }
+    
+    std::sort(writes.begin(), writes.end(), cmp);
 }
 
 static void map_new_tables(kvdb * db)
@@ -506,7 +513,7 @@ static void map_new_tables(kvdb * db)
     }
 }
 
-static int write_journal(const char * filename, std::map<uint64_t, std::string> & writes)
+static int write_journal(const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes)
 {
     int r;
     off_t journal_size = 0;
@@ -514,7 +521,7 @@ static int write_journal(const char * filename, std::map<uint64_t, std::string> 
     char * journal_current = NULL;
     int fd_journal = -1;
     uint32_t checksum = 0;
-    std::map<uint64_t, std::string>::iterator it;
+    std::vector<std::pair<uint64_t, std::string>>::iterator it;
     
     fd_journal = open(filename, O_RDWR | O_CREAT, 0600);
     if (fd_journal == -1) {
