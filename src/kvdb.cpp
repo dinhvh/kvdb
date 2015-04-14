@@ -1203,6 +1203,7 @@ struct read_value_params {
     int result;
     int found;
     size_t free_size;
+    int should_fetch_value;
 };
 
 static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
@@ -1211,6 +1212,12 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
     struct read_value_params * readparams = (struct read_value_params *) data;
     ssize_t r;
     
+    if (!readparams->should_fetch_value) {
+        readparams->result = KVDB_ERROR_NONE;
+        readparams->found = 1;
+        return;
+    }
+
     uint64_t value_size;
     r = pread(db->kv_fd, &value_size, sizeof(value_size),
               params->current_offset + 8 + 4 + 1 + 8 + params->key_size);
@@ -1238,7 +1245,7 @@ static void read_value_callback(kvdb * db, struct find_key_cb_params * params,
         value_p += count;
     }
     
-    readparams->result = 0;
+    readparams->result = KVDB_ERROR_NONE;
     readparams->found = 1;
     readparams->free_size = (1 << params->log2_size) - (value_size + params->key_size);
 }
@@ -1252,7 +1259,7 @@ int kvdb_get(kvdb * db, const char * key, size_t key_size,
 static int kvdb_get2(kvdb * db, const char * key, size_t key_size,
                      char ** p_value, size_t * p_value_size, size_t * p_free_size)
 {
-    if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) {
+    if ((db->kv_compression_type == KVDB_COMPRESSION_TYPE_RAW) || (p_value == NULL)) {
         return internal_kvdb_get2(db, key, key_size, p_value, p_value_size, p_free_size);
     }
     else if (db->kv_compression_type == KVDB_COMPRESSION_TYPE_LZ4) {
@@ -1296,6 +1303,7 @@ static int internal_kvdb_get2(kvdb * db, const char * key, size_t key_size,
     data.result = -1;
     data.found = 0;
     data.free_size = 0;
+    data.should_fetch_value = (p_value != NULL);
 
     r = find_key(db, key, key_size, read_value_callback, &data);
     if (r < 0) {
