@@ -30,7 +30,7 @@
 #include "kvserialization.h"
 
 #define MARKER "KVDB"
-#define VERSION 5
+#define VERSION 6
 
 #define PRE_READ_KEY_SIZE 128
 #define MAX_ALLOCA_SIZE 4096

@@ -62,6 +62,7 @@ static unsigned int find_key(kvdbo_iterator * iterator, const std::string key);
 static void unserialize_words_list(std::vector<std::string> & word_list, char * value, size_t size);
 static void unserialize_words_set(std::set<std::string> & word_set, char * value, size_t size, bool clear_words_set);
 static void serialize_words_set(std::string & value, std::set<std::string> & word_set);
+static void serialize_words_list(std::string & value, std::vector<std::string> & word_list);
 static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id);
 static int add_first_node(kvdbo * db);
 static int load_node(struct modified_node * node, unsigned int node_index);
@@ -399,12 +400,7 @@ static int write_master_node(kvdbo * db)
     for(uint64_t i = 0 ; i < db->nodes_keys_count.size() ; i ++) {
         kv_encode_uint64(buffer, db->nodes_keys_count[i]);
     }
-    for(uint64_t i = 0 ; i < db->nodes_first_keys.size() ; i ++) {
-        // write first key of the node.
-        std::string key = db->nodes_first_keys[i];
-        buffer.append(key.c_str(), key.length());
-        buffer.push_back(0);
-    }
+    serialize_words_list(buffer, db->nodes_first_keys);
     std::string master_node_key;
     master_node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
     master_node_key.append(MASTER_NODE_KEY, strlen(MASTER_NODE_KEY));
@@ -515,16 +511,15 @@ static void unserialize_words_list(std::vector<std::string> & word_list, char * 
 {
     word_list.clear();
     const char * p = value;
-    const char * key_start = value;
     while (size > 0) {
-        if (* p == 0) {
-            // add key.
-            size_t len = p - key_start;
-            word_list.push_back(std::string(key_start, len));
-            key_start = p + 1;
-        }
-        p ++;
-        size --;
+        uint64_t length;
+        size_t position = kv_cstr_decode_uint64(p, size, 0, &length);
+        p += position;
+        size -= position;
+        std::string word = std::string(p, length);
+        word_list.push_back(word);
+        p += length;
+        size -= length;
     }
 }
 
@@ -535,16 +530,15 @@ static void unserialize_words_set(std::set<std::string> & word_set, char * value
         word_set.clear();
     }
     const char * p = value;
-    const char * key_start = value;
     while (size > 0) {
-        if (* p == 0) {
-            // add key.
-            size_t len = p - key_start;
-            word_set.insert(std::string(key_start, len));
-            key_start = p + 1;
-        }
-        p ++;
-        size --;
+        uint64_t length;
+        size_t position = kv_cstr_decode_uint64(p, size, 0, &length);
+        p += position;
+        size -= position;
+        std::string word = std::string(p, length);
+        word_set.insert(word);
+        p += length;
+        size -= length;
     }
 }
 
@@ -554,9 +548,17 @@ static void serialize_words_set(std::string & value, std::set<std::string> & wor
 {
     std::set<std::string>::iterator it = word_set.begin();
     while (it != word_set.end()) {
+        kv_encode_uint64(value, it->length());
         value.append(* it);
-        value.push_back(0);
         it ++;
+    }
+}
+
+static void serialize_words_list(std::string & value, std::vector<std::string> & word_list)
+{
+    for(unsigned int i = 0 ; i < word_list.size() ; i ++) {
+        kv_encode_uint64(value, word_list[i].length());
+        value.append(word_list[i]);
     }
 }
 
