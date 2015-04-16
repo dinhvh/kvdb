@@ -60,8 +60,6 @@ static int read_master_node(kvdbo * db);
 static unsigned int find_node(kvdbo * db, const std::string key);
 static unsigned int find_key(kvdbo_iterator * iterator, const std::string key);
 static void unserialize_words_list(std::vector<std::string> & word_list, char * value, size_t size);
-static void unserialize_words_set(std::set<std::string> & word_set, char * value, size_t size, bool clear_words_set);
-static void serialize_words_set(std::string & value, std::set<std::string> & word_set);
 static void serialize_words_list(std::string & value, std::vector<std::string> & word_list);
 static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id);
 static int add_first_node(kvdbo * db);
@@ -75,6 +73,11 @@ static int remove_node(kvdbo * db, unsigned int node_index);
 static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
                       std::set<std::string> & keys);
 static int start_implicit_transaction_if_needed(kvdbo * db);
+static void unserialize_keys(std::set<std::string> & keys, std::string & buffer);
+static void node_unserialize_keys_to_vector(std::vector<std::string> & result,
+                                            std::string buffer);
+static void node_unserialize_keys(struct modified_node * node);
+static void node_serialize_keys(struct modified_node * node);
 
 static void show_nodes(kvdbo * db);
 
@@ -360,6 +363,39 @@ int kvdbo_iterator_is_valid(kvdbo_iterator * iterator)
     return (iterator->key_index != -1) && (iterator->key_index < iterator->keys.size());
 }
 
+static void node_unserialize_keys_to_vector(std::vector<std::string> & result,
+                                            std::string buffer)
+{
+    result.clear();
+    const char * p = buffer.c_str();
+    p += sizeof(uint64_t);
+    size_t size = buffer.length() - sizeof(uint64_t);
+    std::set<std::string> keys;
+    while (size > 0) {
+        char command = * p;
+        p ++;
+        size --;
+        uint64_t length;
+        size_t position = kv_cstr_decode_uint64(p, size, 0, &length);
+        p += position;
+        size -= position;
+        std::string word = std::string(p, length);
+        if (command) {
+            keys.insert(word);
+        }
+        else {
+            keys.erase(word);
+        }
+        p += length;
+        size -= length;
+    }
+    std::set<std::string>::iterator it = keys.begin();
+    while (it != keys.end()) {
+        result.push_back(* it);
+        it ++;
+    }
+}
+
 static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
 {
     iterator->node_id = node_id;
@@ -381,7 +417,7 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
         return r;
     }
     // load all nodes in a vector.
-    unserialize_words_list(iterator->keys, value, size);
+    node_unserialize_keys_to_vector(iterator->keys, std::string(value, size));
     free(value);
     return KVDB_ERROR_NONE;
 }
@@ -523,37 +559,6 @@ static void unserialize_words_list(std::vector<std::string> & word_list, char * 
     }
 }
 
-// unserialize a list of words to a set.
-static void unserialize_words_set(std::set<std::string> & word_set, char * value, size_t size, bool clear_words_set)
-{
-    if (clear_words_set) {
-        word_set.clear();
-    }
-    const char * p = value;
-    while (size > 0) {
-        uint64_t length;
-        size_t position = kv_cstr_decode_uint64(p, size, 0, &length);
-        p += position;
-        size -= position;
-        std::string word = std::string(p, length);
-        word_set.insert(word);
-        p += length;
-        size -= length;
-    }
-}
-
-// serialize a list of words stored in a set.
-// the result will be stored in the variable value.
-static void serialize_words_set(std::string & value, std::set<std::string> & word_set)
-{
-    std::set<std::string>::iterator it = word_set.begin();
-    while (it != word_set.end()) {
-        kv_encode_uint64(value, it->length());
-        value.append(* it);
-        it ++;
-    }
-}
-
 static void serialize_words_list(std::string & value, std::vector<std::string> & word_list)
 {
     for(unsigned int i = 0 ; i < word_list.size() ; i ++) {
@@ -567,10 +572,33 @@ struct modified_node {
     kvdbo * db;
     uint64_t node_id;
     unsigned int node_index;
+    std::string buffer;
+    uint64_t changes_count;
+    // flushed.
+    bool has_first_key;
+    std::string first_key;
+    uint32_t keys_count;
     std::set<std::string> keys;
 };
 
-// flush the pending changes of the keys list in memory.
+static void node_delete_key(struct modified_node * node, std::string key)
+{
+    char command = 0;
+    node->buffer.append(&command, 1);
+    kv_encode_uint64(node->buffer, key.length());
+    node->buffer.append(key);
+    node->changes_count --;
+}
+
+static void node_add_key(struct modified_node * node, std::string key)
+{
+    char command = 1;
+    node->buffer.append(&command, 1);
+    kv_encode_uint64(node->buffer, key.length());
+    node->buffer.append(key);
+    node->changes_count ++;
+}
+
 static int flush_pending_keys(kvdbo * db)
 {
     int r;
@@ -590,6 +618,10 @@ static int flush_pending_keys(kvdbo * db)
     current_node.db = db;
     current_node.node_id = 0;
     current_node.node_index = -1;
+    current_node.changes_count = 0;
+    current_node.has_first_key = false;
+    current_node.keys_count = 0;
+    current_node.keys.clear();
     
     std::set<std::string>::iterator addition_it = db->pending_keys.begin();
     std::set<std::string>::iterator deletion_it = db->pending_keys_delete.begin();
@@ -602,7 +634,7 @@ static int flush_pending_keys(kvdbo * db)
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
-                current_node.keys.erase(* deletion_it);
+                node_delete_key(&current_node, * deletion_it);
                 deletion_it ++;
             }
             while (addition_it != db->pending_keys.end()) {
@@ -610,7 +642,7 @@ static int flush_pending_keys(kvdbo * db)
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
-                current_node.keys.insert(* addition_it);
+                node_add_key(&current_node, * addition_it);
                 addition_it ++;
             }
         }
@@ -626,7 +658,7 @@ static int flush_pending_keys(kvdbo * db)
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
-                current_node.keys.erase(* deletion_it);
+                node_delete_key(&current_node, * deletion_it);
                 deletion_it ++;
             }
             while (addition_it != db->pending_keys.end()) {
@@ -639,7 +671,7 @@ static int flush_pending_keys(kvdbo * db)
                 if (current_node.node_index != node_index) {
                     load_node(&current_node, node_index);
                 }
-                current_node.keys.insert(* addition_it);
+                node_add_key(&current_node, * addition_it);
                 addition_it ++;
             }
         }
@@ -656,17 +688,87 @@ static int flush_pending_keys(kvdbo * db)
     return KVDB_ERROR_NONE;
 }
 
+static void node_serialize_keys(struct modified_node * node)
+{
+    node->buffer.clear();
+    uint64_t count = 0;
+    node->buffer.append((char *) &count, sizeof(uint64_t));
+    std::set<std::string>::iterator it = node->keys.begin();
+    while (it != node->keys.end()) {
+        char command = 1;
+        node->buffer.append(&command, 1);
+        kv_encode_uint64(node->buffer, it->length());
+        node->buffer.append(* it);
+        it ++;
+    }
+}
+
+static void node_unserialize_keys(struct modified_node * node)
+{
+    node->keys.clear();
+    unserialize_keys(node->keys, node->buffer);
+}
+
+static void unserialize_keys(std::set<std::string> & keys, std::string & buffer)
+{
+    const char * p = buffer.c_str();
+    p += sizeof(uint64_t);
+    size_t size = buffer.length() - sizeof(uint64_t);
+    while (size > 0) {
+        char command = * p;
+        p ++;
+        size --;
+        uint64_t length;
+        size_t position = kv_cstr_decode_uint64(p, size, 0, &length);
+        p += position;
+        size -= position;
+        std::string word = std::string(p, length);
+        if (command) {
+            keys.insert(word);
+        }
+        else {
+            keys.erase(word);
+        }
+        p += length;
+        size -= length;
+    }
+}
+
+static void flush_node(struct modified_node * node)
+{
+    node_unserialize_keys(node);
+    node_serialize_keys(node);
+    
+    std::set<std::string>::iterator it = node->keys.begin();
+    if (it != node->keys.end()) {
+        node->has_first_key = true;
+        node->first_key = * it;
+    }
+    else {
+        node->has_first_key = false;
+    }
+    node->changes_count = 0;
+    node->keys_count = (uint32_t) node->keys.size();
+}
+
 // load the given node in memory.
 static int load_node(struct modified_node * node, unsigned int node_index)
 {
-    write_loaded_node(node);
+    int r = write_loaded_node(node);
+    if (r < 0) {
+        return r;
+    }
     
     uint64_t node_id = node->db->nodes_ids[node_index];
     node->node_index = node_index;
     node->node_id = node_id;
+    node->buffer.clear();
+    node->changes_count = 0;
+    node->has_first_key = false;
+    node->keys_count = 0;
     node->keys.clear();
     
-    int r = load_from_node_id(node, node_id);
+    r = load_from_node_id(node, node_id);
     if (r != 0) {
         return r;
     }
@@ -687,6 +789,7 @@ static int load_from_node_id(struct modified_node * node, uint64_t node_id)
     int r = kvdb_get(node->db->db, node_key.c_str(), node_key.length(), &value, &value_size);
     if (r == KVDB_ERROR_NOT_FOUND) {
         // normal situation.
+        node->buffer.append(sizeof(uint64_t), 0);
         return KVDB_ERROR_NONE;
     }
     else if (r < 0) {
@@ -694,7 +797,9 @@ static int load_from_node_id(struct modified_node * node, uint64_t node_id)
         return r;
     }
     
-    unserialize_words_set(node->keys, value, value_size, false);
+    node->buffer.append(value, value_size);
+    node->changes_count = ntoh64(* (uint64_t *) value);
+    
     free(value);
     
     return KVDB_ERROR_NONE;
@@ -717,6 +822,46 @@ static int remove_node_id(kvdbo * db, uint64_t node_id)
     return KVDB_ERROR_NONE;
 }
 
+static int write_single_loaded_node(struct modified_node * node)
+{
+    // write the node.
+    * (uint64_t *) node->buffer.c_str() = hton64(node->changes_count);
+    std::string node_key;
+    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
+    node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
+    uint64_t identifier = hton64(node->node_id);
+    node_key.append((const char *) &identifier, sizeof(identifier));
+    int r = kvdb_set(node->db->db, node_key.c_str(), node_key.length(), node->buffer.c_str(), node->buffer.length());
+    if (r < 0) {
+        return r;
+    }
+    
+    // update the master node.
+    bool changed = false;
+    if (node->node_id != node->db->nodes_ids[node->node_index]) {
+        node->db->nodes_ids[node->node_index] = node->node_id;
+        changed = true;
+    }
+    if (node->has_first_key) {
+        if (node->db->nodes_keys_count[node->node_index] != node->keys_count) {
+            node->db->nodes_keys_count[node->node_index] = (uint32_t) node->keys_count;
+            changed = true;
+        }
+        if (node->db->nodes_first_keys[node->node_index] != node->first_key) {
+            node->db->nodes_first_keys[node->node_index] = node->first_key;
+            changed = true;
+        }
+    }
+    if (changed) {
+        r = write_master_node(node->db);
+        if (r < 0) {
+            return r;
+        }
+    }
+    
+    return KVDB_ERROR_NONE;
+}
+
 // returns the next usable node identifier.
 static uint64_t allocate_node_id(kvdbo * db)
 {
@@ -735,6 +880,7 @@ static int add_first_node(kvdbo * db)
     return write_master_node(db);
 }
 
+#define MAX_CHANGES_COUNT 16384
 #define MAX_KEYS_PER_NODE 16384
 #define KEYS_PER_NODE_MERGE_THRESHOLD_FACTOR 4
 #define KEYS_PER_NODE_MERGE_THRESHOLD (MAX_KEYS_PER_NODE / KEYS_PER_NODE_MERGE_THRESHOLD_FACTOR)
@@ -749,14 +895,23 @@ static int write_loaded_node(struct modified_node * node)
         return KVDB_ERROR_NONE;
     }
     
-    if (node->keys.size() == 0) {
+    if (node->changes_count < MAX_CHANGES_COUNT) {
+        int r = write_single_loaded_node(node);
+        // invalidate.
+        node->node_index = -1;
+        return r;
+    }
+    
+    flush_node(node);
+    
+    if (node->keys_count == 0) {
         // if there's no keys.
         int r = remove_node(node->db, node->node_index);
         // invalidate.
         node->node_index = -1;
         return r;
     }
-    else if (node->keys.size() > MAX_KEYS_PER_NODE) {
+    else if (node->keys_count > MAX_KEYS_PER_NODE) {
         // if there's more keys than the limit, split node.
         unsigned int node_index = node->node_index;
         // compute the number of nodes to create to replace this one.
@@ -775,7 +930,7 @@ static int write_loaded_node(struct modified_node * node)
         node->node_index = -1;
         return KVDB_ERROR_NONE;
     }
-    else if (node->keys.size() < KEYS_PER_NODE_MERGE_THRESHOLD) {
+    else if (node->keys_count < KEYS_PER_NODE_MERGE_THRESHOLD) {
         // if there's a low number of keys.
         int r = write_single_loaded_node(node);
         if (r < 0) {
@@ -813,48 +968,6 @@ static int write_loaded_node(struct modified_node * node)
     return KVDB_ERROR_NONE;
 }
 
-static int write_single_loaded_node(struct modified_node * node)
-{
-    // write the node.
-    std::string value;
-    serialize_words_set(value, node->keys);
-    std::string node_key;
-    node_key.append(METAKEY_PREFIX, METAKEY_PREFIX_SIZE);
-    node_key.append(NODE_PREFIX, strlen(NODE_PREFIX));
-    uint64_t identifier = hton64(node->node_id);
-    node_key.append((const char *) &identifier, sizeof(identifier));
-    int r = kvdb_set(node->db->db, node_key.c_str(), node_key.length(), value.c_str(), value.length());
-    if (r < 0) {
-        return r;
-    }
-    // update the master node.
-    bool changed = false;
-    if (node->node_id != node->db->nodes_ids[node->node_index]) {
-        node->db->nodes_ids[node->node_index] = node->node_id;
-        changed = true;
-    }
-    if (node->db->nodes_keys_count[node->node_index] != node->keys.size()) {
-        node->db->nodes_keys_count[node->node_index] = (uint32_t) node->keys.size();
-        changed = true;
-    }
-    std::string first_key;
-    if (node->keys.begin() != node->keys.end()) {
-        first_key = * node->keys.begin();
-    }
-    if (node->db->nodes_first_keys[node->node_index] != first_key) {
-        node->db->nodes_first_keys[node->node_index] = first_key;
-        changed = true;
-    }
-    if (changed) {
-        r = write_master_node(node->db);
-        if (r < 0) {
-            return r;
-        }
-    }
-    
-    return KVDB_ERROR_NONE;
-}
-
 // try to merge with the next node.
 static int try_merge(kvdbo * db, unsigned int node_index, bool * pDidMerge)
 {
@@ -874,17 +987,32 @@ static int try_merge(kvdbo * db, unsigned int node_index, bool * pDidMerge)
     current_node.db = db;
     current_node.node_id = db->nodes_ids[node_index];
     current_node.node_index = node_index;
+    current_node.changes_count = 0;
+    current_node.has_first_key = false;
+    current_node.keys_count = 0;
+    current_node.keys.clear();
     
-    // add keys of node at node_index into memory.
+    struct modified_node next_node;
+    next_node.db = db;
+    next_node.node_id = db->nodes_ids[node_index + 1];
+    next_node.node_index = node_index + 1;
+    next_node.changes_count = 0;
+    next_node.has_first_key = false;
+    next_node.keys_count = 0;
+    next_node.keys.clear();
+    
     int r = load_from_node_id(&current_node, db->nodes_ids[node_index]);
     if (r < 0) {
         return r;
     }
     // add keys of node at (node_index + 1) into memory.
-    r = load_from_node_id(&current_node, db->nodes_ids[node_index + 1]);
+    r = load_from_node_id(&next_node, db->nodes_ids[node_index + 1]);
     if (r < 0) {
         return r;
     }
+    
+    node_unserialize_keys(&current_node);
+    unserialize_keys(current_node.keys, next_node.buffer);
     
     // write the result.
     r = write_single_loaded_node(&current_node);
@@ -935,20 +1063,28 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
         nodes[i].db = db;
         nodes[i].node_id = allocate_node_id(db);
         nodes[i].node_index = node_index + i;
-        //nodes[i].keys = new std::set<std::string>();
+        nodes[i].buffer.append(sizeof(uint64_t), 0);
+        nodes[i].changes_count = 0;
+        nodes[i].has_first_key = false;
+        nodes[i].keys_count = 0;
+        nodes[i].keys.clear();
     }
     
     // fill the new nodes with keys.
     struct modified_node * current_node = &nodes[0];
-    unsigned int added_count = 0;
+    uint32_t added_count = 0;
+    current_node->keys_count = 0;
     std::set<std::string>::iterator it = keys.begin();
     while (it != keys.end()) {
         if (added_count >= MAX_KEYS_PER_NODE / MEAN_KEYS_PER_NODE_FACTOR) {
             current_node ++;
             added_count = 0;
+            current_node->first_key = * it;
+            current_node->has_first_key = true;
         }
-        current_node->keys.insert(* it);
+        node_add_key(current_node, * it);
         added_count ++;
+        current_node->keys_count ++;
         it ++;
     }
     
