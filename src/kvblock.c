@@ -97,6 +97,9 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     while (remaining > 0) {
         ssize_t count = pwrite(db->kv_fd, remaining_data, remaining, write_offset);
         if (count < 0) {
+            if (allocated != NULL) {
+                free(allocated);
+            }
             return 0;
         }
         write_offset += count;
