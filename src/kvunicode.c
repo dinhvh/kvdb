@@ -170,7 +170,7 @@ char * kv_to_utf8(const UChar * word)
     UTF8 * target = (UTF8 *) malloc(len * 6 + 1);
     UTF8 * targetStart = target;
     ConvertUTF16toUTF8(&source, source + len,
-                       &targetStart, targetStart + len * 6 + 1, lenientConversion);
+                       &targetStart, targetStart + len * 6, lenientConversion);
     unsigned int utf8length = (unsigned int) (targetStart - target);
     target[utf8length] = 0;
     return (char *) target;
