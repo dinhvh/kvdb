@@ -93,6 +93,7 @@ struct kvdb {
     bool kv_opened;
     uint64_t kv_firstmaxcount;
     int kv_compression_type;
+    int kv_fsync_enabled;
     uint64_t * kv_filesize; // host order
     uint64_t * kv_free_blocks; // host order
     struct kvdb_table * kv_first_table;
@@ -100,6 +101,14 @@ struct kvdb {
     struct kvdb_transaction * kv_transaction;
     bool kv_implicit_transaction;
     unsigned int kv_implicit_transaction_op_count;
+    int kv_journal_fd;
+    void * kv_journal_mapping;
+    off_t kv_journal_filesize;
+    char * kv_write_buffer;
+    size_t kv_write_buffer_size;
+    size_t kv_write_buffer_remaining;
+    char * kv_write_buffer_next_block;
+    off_t kv_write_buffer_location;
 };
 
 struct kvdb_item {

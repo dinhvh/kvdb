@@ -17,6 +17,7 @@
 #include "kvprime.h"
 #include "kvpaddingutils.h"
 #include "kvassert.h"
+#include "kvblock.h"
 
 static int map_table(kvdb * db, struct kvdb_table ** result, uint64_t offset, uint64_t filesize, int is_first);
 static int mapping_setup(struct kvdb_mapping * mapping, int fd, off_t offset, size_t size);
@@ -54,6 +55,8 @@ uint64_t kv_table_create(kvdb * db, uint64_t size, struct kvdb_table ** result)
     uint64_t mapping_size = KV_TABLE_SIZE(size);
     uint64_t offset = db->kv_transaction->filesize;
     int r;
+    
+    kv_block_buffer_flush(db);
     
     r = ftruncate(db->kv_fd, offset + mapping_size);
     if (r < 0) {

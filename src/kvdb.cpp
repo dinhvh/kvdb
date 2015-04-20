@@ -46,9 +46,10 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize);
 static int start_implicit_transaction_if_needed(kvdb * db);
 static void compute_writes_for_journal(kvdb * db, std::vector<std::pair<uint64_t, std::string>> & writes);
 static void map_new_tables(kvdb * db);
-static int write_journal(const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes);
+static int write_journal(kvdb * db, const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes);
 static int kvdb_create(kvdb * db);
 static int kvdb_setup(kvdb * db, int create_file, uint64_t filesize);
+static int open_journal(kvdb * db);
 
 kvdb * kvdb_new(const char * filename)
 {
@@ -61,6 +62,7 @@ kvdb * kvdb_new(const char * filename)
     db->kv_opened = false;
     db->kv_firstmaxcount = kv_getnextprime(KV_FIRST_TABLE_MAX_COUNT);
     db->kv_compression_type = KVDB_COMPRESSION_TYPE_LZ4;
+    db->kv_fsync_enabled = 1;
     db->kv_filesize = NULL;
     db->kv_free_blocks = NULL;
     db->kv_first_table = NULL;
@@ -68,11 +70,20 @@ kvdb * kvdb_new(const char * filename)
     db->kv_transaction = NULL;
     db->kv_implicit_transaction = false;
     db->kv_implicit_transaction_op_count = 0;
+    db->kv_journal_fd = -1;
+    db->kv_journal_filesize = 0;
+    db->kv_journal_mapping = NULL;
+    db->kv_write_buffer = NULL;
+    db->kv_write_buffer_size = 0;
+    db->kv_write_buffer_remaining = 0;
+    db->kv_write_buffer_next_block = db->kv_write_buffer;
+    db->kv_write_buffer_location = 0;
     return db;
 }
 
 void kvdb_free(kvdb * db)
 {
+    free(db->kv_write_buffer);
     if (db->kv_opened) {
         fprintf(stderr, "kvdb: %s should be closed before freeing\n", kvdb_get_filename(db));
     }
@@ -96,6 +107,32 @@ void kvdb_set_compression_type(kvdb * db, int compression_type)
 int kvdb_get_compression_type(kvdb * db)
 {
     return db->kv_compression_type;
+}
+
+void kvdb_set_fsync_enabled(kvdb * db, int enabled)
+{
+    db->kv_fsync_enabled = enabled;
+}
+
+int kvdb_is_fsync_enabled(kvdb * db)
+{
+    return db->kv_fsync_enabled;
+}
+
+void kvdb_set_write_buffer_size(kvdb * db, size_t size)
+{
+    if (db->kv_opened) {
+        return;
+    }
+    
+    free(db->kv_write_buffer);
+    db->kv_write_buffer_size = size;
+    db->kv_write_buffer = (char *) malloc(size);
+}
+
+size_t kvdb_get_write_buffer_size(kvdb * db)
+{
+    return db->kv_write_buffer_size;
 }
 
 int kvdb_open(kvdb * db)
@@ -210,9 +247,11 @@ static int kvdb_create(kvdb * db)
         return KVDB_ERROR_IO;
     }
     
-    r = fsync(db->kv_fd);
-    if (r < 0) {
-        return KVDB_ERROR_IO;
+    if (db->kv_fsync_enabled) {
+        r = fsync(db->kv_fd);
+        if (r < 0) {
+            return KVDB_ERROR_IO;
+        }
     }
     
     // Let's write a valid version.
@@ -222,9 +261,11 @@ static int kvdb_create(kvdb * db)
         return KVDB_ERROR_IO;
     }
     
-    r = fsync(db->kv_fd);
-    if (r < 0) {
-        return KVDB_ERROR_IO;
+    if (db->kv_fsync_enabled) {
+        r = fsync(db->kv_fd);
+        if (r < 0) {
+            return KVDB_ERROR_IO;
+        }
     }
     
     return KVDB_ERROR_NONE;
@@ -302,6 +343,14 @@ int kvdb_close(kvdb * db)
     kv_tables_unsetup(db);
     close(db->kv_fd);
     db->kv_opened = false;
+    if (db->kv_journal_mapping != NULL) {
+        munmap(db->kv_journal_mapping, db->kv_journal_filesize);
+        db->kv_journal_mapping = NULL;
+    }
+    if (db->kv_journal_fd != -1) {
+        close(db->kv_journal_fd);
+        db->kv_journal_fd = -1;
+    }
     return KVDB_ERROR_NONE;
 }
 
@@ -357,18 +406,26 @@ int kvdb_transaction_commit(kvdb * db)
     strcat(filename, db->kv_filename);
     strcat(filename, ".journal");
     
-    // 1. fsync kvdb: it will write created blocks and tables.
-    r = fsync(db->kv_fd);
+    r = kv_block_buffer_flush(db);
     if (r < 0) {
         res = KVDB_ERROR_IO;
         goto transaction_failed;
+    }
+    
+    // 1. fsync kvdb: it will write created blocks and tables.
+    if (db->kv_fsync_enabled) {
+        r = fsync(db->kv_fd);
+        if (r < 0) {
+            res = KVDB_ERROR_IO;
+            goto transaction_failed;
+        }
     }
     
     // 2. compute journal
     compute_writes_for_journal(db, writes);
     
     // 3. write journal to disk (list of {offset, size, data})
-    r = write_journal(filename, writes);
+    r = write_journal(db, filename, writes);
     if (r < 0) {
         res = r;
         goto transaction_failed;
@@ -391,7 +448,6 @@ int kvdb_transaction_commit(kvdb * db)
     return KVDB_ERROR_NONE;
     
 transaction_failed:
-    unlink(filename);
     kvdb_transaction_abort(db);
     return res;
 }
@@ -513,22 +569,59 @@ static void map_new_tables(kvdb * db)
     }
 }
 
-static int write_journal(const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes)
+static int open_journal(kvdb * db)
+{
+    if (db->kv_journal_fd != -1) {
+        return KVDB_ERROR_NONE;
+    }
+    
+    char * filename = (char *) alloca(strlen(db->kv_filename) + strlen(".journal") + 1);
+    filename[0] = 0;
+    strcat(filename, db->kv_filename);
+    strcat(filename, ".journal");
+    
+    off_t size = 0;
+    struct stat stat_buf;
+    int r = stat(filename, &stat_buf);
+    if (r == 0) {
+        size = stat_buf.st_size;
+    }
+    db->kv_journal_fd = open(filename, O_RDWR | O_CREAT, 0600);
+    if (db->kv_journal_fd < 0) {
+        return KVDB_ERROR_IO;
+    }
+    
+    db->kv_journal_filesize = stat_buf.st_size;
+    
+    if (db->kv_journal_filesize == 0) {
+        db->kv_journal_mapping = NULL;
+    }
+    else {
+        db->kv_journal_mapping = mmap(NULL, db->kv_journal_filesize, PROT_READ | PROT_WRITE, MAP_SHARED, db->kv_journal_fd, 0);
+        if (db->kv_journal_mapping == (void *) MAP_FAILED) {
+            close(db->kv_journal_fd);
+            db->kv_journal_fd = -1;
+            return KVDB_ERROR_IO;
+        }
+    }
+    
+    return KVDB_ERROR_NONE;
+}
+
+static int write_journal(kvdb * db, const char * filename, std::vector<std::pair<uint64_t, std::string>> & writes)
 {
     int r;
-    off_t journal_size = 0;
-    void * mapping = NULL;
+    size_t journal_size = 0;
     char * journal_current = NULL;
-    int fd_journal = -1;
     uint32_t checksum = 0;
     std::vector<std::pair<uint64_t, std::string>>::iterator it;
     
-    fd_journal = open(filename, O_RDWR | O_CREAT, 0600);
-    if (fd_journal == -1) {
-        goto error;
+    r = open_journal(db);
+    if (r < 0) {
+        return r;
     }
     
-    journal_size = 8; // header size: marker + checksum.
+    journal_size = 12; // header size: marker + size + checksum
     it = writes.begin();
     while (it != writes.end()) {
         std::string item;
@@ -539,18 +632,35 @@ static int write_journal(const char * filename, std::vector<std::pair<uint64_t, 
         it ++;
     }
     
-    r = ftruncate(fd_journal, journal_size);
-    if (r < 0) {
-        goto error;
+    bool mapping_changed = false;
+    size_t old_size = db->kv_journal_filesize;
+    while (db->kv_journal_filesize < journal_size) {
+        if (db->kv_journal_filesize < 256 * 1024) {
+            db->kv_journal_filesize = 256 * 1024;
+        }
+        db->kv_journal_filesize *= 2;
+        mapping_changed = true;
     }
     
-    mapping = mmap(NULL, journal_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_journal, 0);
-    if (mapping == (void *) MAP_FAILED) {
-        goto error;
+    if (mapping_changed) {
+        if (db->kv_journal_mapping != NULL) {
+            munmap(db->kv_journal_mapping, old_size);
+        }
+        ftruncate(db->kv_journal_fd, db->kv_journal_filesize);
+        db->kv_journal_mapping = mmap(NULL, db->kv_journal_filesize, PROT_READ | PROT_WRITE, MAP_SHARED, db->kv_journal_fd, 0);
+        if (db->kv_journal_mapping == (void *) MAP_FAILED) {
+            db->kv_journal_mapping = NULL;
+            return KVDB_ERROR_IO;
+        }
     }
+    
+    void * mapping = db->kv_journal_mapping;
     memcpy(mapping, "KVJL", 4);
     
-    journal_current = ((char *) mapping) + 8;
+    uint32_t written_journal_size = htonl(journal_size - 12);
+    memcpy((void *) ((char *) mapping + 4), &written_journal_size, sizeof(written_journal_size));
+    
+    journal_current = ((char *) mapping) + 12;
     it = writes.begin();
     while (it != writes.end()) {
         std::string item;
@@ -564,48 +674,34 @@ static int write_journal(const char * filename, std::vector<std::pair<uint64_t, 
         it ++;
     }
     
-    checksum = kv_murmur_hash(((const char *) mapping) + 8, journal_size - 8, 0);
+    checksum = kv_murmur_hash(((const char *) mapping) + 12, journal_size - 12, 0);
     checksum = htonl(checksum);
-    memcpy(((char *) mapping) + 4, &checksum, sizeof(checksum));
+    memcpy(((char *) mapping) + 8, &checksum, sizeof(checksum));
     
-    munmap(mapping, journal_size + 8);
-    mapping = NULL;
-    
-    r = fsync(fd_journal);
-    if (r < 0) {
-        goto error;
+    if (db->kv_fsync_enabled) {
+        r = msync(db->kv_journal_mapping, db->kv_journal_filesize, MS_SYNC);
+        if (r < 0) {
+            return KVDB_ERROR_IO;
+        }
+        r = fsync(db->kv_journal_fd);
+        if (r < 0) {
+            return KVDB_ERROR_IO;
+        }
     }
-    
-    close(fd_journal);
-    fd_journal = -1;
     
     return KVDB_ERROR_NONE;
-    
-error:
-    if (mapping != NULL) {
-        munmap(mapping, journal_size + 8);
-    }
-    if (fd_journal != -1) {
-        close(fd_journal);
-    }
-    unlink(filename);
-    return KVDB_ERROR_IO;
 }
 
 // journal format:
 // KVJL
-// 0 or 1 (1: valid): 32 bits
-// offset: 64 bits, size: 16 bits, data
+// 32 bits: journal size
+// 32 bits: checksum
+// n x (encoded 64 bits offset, encoded 64 bits data size, data)
 
 #define DEFAULT_MAPPING_SIZE (256 * 1024)
 
 static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
 {
-    char * filename = (char *) alloca(strlen(db->kv_filename) + strlen(".journal") + 1);
-    filename[0] = 0;
-    strcat(filename, db->kv_filename);
-    strcat(filename, ".journal");
-    struct stat stat_buf;
     char * journal = NULL;
     int fd = -1;
     int r;
@@ -614,38 +710,29 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
     unsigned int changes = 0;
     uint32_t checksum;
     uint32_t stored_checksum;
+    uint32_t stored_size;
     void * current_mapping = NULL;
     size_t current_mapping_size = 0;
     uint64_t current_mapping_offset = 0;
     int res;
     
-    r = stat(filename, &stat_buf);
+    r = open_journal(db);
     if (r < 0) {
-        // no journal.
+        return r;
+    }
+    
+    if (db->kv_journal_mapping == NULL) {
         return KVDB_ERROR_NONE;
     }
     
-    // 1. if the journal not valid, remove it.
-    if (stat_buf.st_size < 8) {
-        res = KVDB_ERROR_INVALID_JOURNAL;
-        goto invalid_journal;
-    }
-    fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        res = KVDB_ERROR_INVALID_JOURNAL;
-        goto invalid_journal;
-    }
-    journal = (char *) mmap(NULL, stat_buf.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (journal == (void *) MAP_FAILED) {
-        res = KVDB_ERROR_INVALID_JOURNAL;
-        goto invalid_journal;
-    }
-    journal_current = journal;
-    remaining = stat_buf.st_size;
+    journal_current = (char *) db->kv_journal_mapping;
+    remaining = db->kv_journal_filesize;
     if (memcmp(journal_current, "KVJL", 4) != 0) {
-        res = KVDB_ERROR_INVALID_JOURNAL;
-        goto invalid_journal;
+        return KVDB_ERROR_INVALID_JOURNAL;
     }
+    journal_current += 4;
+    remaining -= 4;
+    stored_size = ntohl(* (uint32_t *) journal_current);
     journal_current += 4;
     remaining -= 4;
     stored_checksum = ntohl(* (uint32_t *) journal_current);
@@ -653,12 +740,12 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
     remaining -= 4;
     
     // check integrity of the content of the journal.
-    checksum = kv_murmur_hash(journal_current, stat_buf.st_size - 8, 0);
+    checksum = kv_murmur_hash(journal_current, stored_size, 0);
     if (checksum != stored_checksum) {
-        res = KVDB_ERROR_INVALID_JOURNAL;
-        goto invalid_journal;
+        return KVDB_ERROR_INVALID_JOURNAL;
     }
     
+    remaining = stored_size;
     // 3. write changes to disk.
     while (remaining > 0) {
         uint64_t offset;
@@ -688,12 +775,14 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
             if (current_mapping != NULL) {
                 munmap(current_mapping, current_mapping_size);
             }
-            current_mapping_offset = (offset / db->kv_pagesize) * db->kv_pagesize;
+            current_mapping_offset = (offset / (uint64_t) db->kv_pagesize) * (uint64_t) db->kv_pagesize;
             if (current_mapping_offset > filesize) {
-                res = KVDB_ERROR_INVALID_JOURNAL;
-                goto invalid_journal;
+                return KVDB_ERROR_INVALID_JOURNAL;
             }
             current_mapping = mmap(NULL, DEFAULT_MAPPING_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, db->kv_fd, current_mapping_offset);
+            if (current_mapping == (void *) MAP_FAILED) {
+                return KVDB_ERROR_IO;
+            }
             current_mapping_size = DEFAULT_MAPPING_SIZE;
         }
         if (data_size == 8) {
@@ -712,31 +801,18 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
         current_mapping = NULL;
     }
     
-    munmap(journal, stat_buf.st_size);
-    journal = NULL;
-
-    // 4. fsync kvdb
-    r = fsync(db->kv_fd);
-    if (r < 0) {
-        res = KVDB_ERROR_IO;
-        goto invalid_journal;
-    }
-    close(fd);
-    
-    // 5. remove journal
-    unlink(filename);
+    // invalidate journal.
+    journal_current = (char *) db->kv_journal_mapping;
+    journal_current += 4;
+    remaining -= 4;
+    * (uint32_t *) journal_current = 0;
+    journal_current += 4;
+    remaining -= 4;
+    * (uint32_t *) journal_current = 0;
+    journal_current += 4;
+    remaining -= 4;
     
     return KVDB_ERROR_NONE;
-    
-invalid_journal:
-    if (journal != NULL) {
-        munmap(journal, stat_buf.st_size);
-    }
-    if (fd != -1) {
-        close(fd);
-    }
-    unlink(filename);
-    return res;
 }
 
 static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_index, std::string & transaction_key, kvdb_transaction_item ** p_item)
@@ -774,9 +850,15 @@ static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_ind
             iterator->second.block_offsets.push_back(current_offset);
             
             char block_header_data[8];
-            r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) next_offset);
-            if (r <= 0) {
-                return KVDB_ERROR_IO;
+            
+            if ((db->kv_write_buffer_location != 0) && (next_offset >= db->kv_write_buffer_location)) {
+                memcpy(block_header_data, db->kv_write_buffer + (next_offset - db->kv_write_buffer_location), sizeof(block_header_data));
+            }
+            else {
+                r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) next_offset);
+                if (r <= 0) {
+                    return KVDB_ERROR_IO;
+                }
             }
             char * p = block_header_data;
             next_offset = bytes_to_h64(p);
@@ -973,9 +1055,14 @@ static int match_block_with_key(kvdb * db, uint64_t offset, uint32_t hash_value,
     
     char block_header_data[KV_BLOCK_KEY_BYTES_OFFSET + PRE_READ_KEY_SIZE];
     
-    r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) offset);
-    if (r <= 0) {
-        return -1;
+    if ((db->kv_write_buffer_location != 0) && (offset >= db->kv_write_buffer_location)) {
+        memcpy(block_header_data, db->kv_write_buffer + (offset - db->kv_write_buffer_location), sizeof(block_header_data));
+    }
+    else {
+        r = pread(db->kv_fd, block_header_data, sizeof(block_header_data), (off_t) offset);
+        if (r <= 0) {
+            return -1;
+        }
     }
 
     char * p = block_header_data;
@@ -1008,12 +1095,17 @@ static int match_block_with_key(kvdb * db, uint64_t offset, uint32_t hash_value,
             allocated = (char *) malloc((size_t) current_key_size);
             current_key = allocated;
         }
-        r = pread(db->kv_fd, current_key, (size_t) current_key_size, (off_t) (offset + KV_BLOCK_KEY_BYTES_OFFSET));
-        if (r <= 0) {
-            if (allocated != NULL) {
-                free(allocated);
+        if ((db->kv_write_buffer_location != 0) && ((offset + KV_BLOCK_KEY_BYTES_OFFSET) >= db->kv_write_buffer_location)) {
+            memcpy(current_key, db->kv_write_buffer + ((offset + KV_BLOCK_KEY_BYTES_OFFSET) - db->kv_write_buffer_location), sizeof(current_key_size));
+        }
+        else {
+            r = pread(db->kv_fd, current_key, (size_t) current_key_size, (off_t) (offset + KV_BLOCK_KEY_BYTES_OFFSET));
+            if (r <= 0) {
+                if (allocated != NULL) {
+                    free(allocated);
+                }
+                return -1;
             }
-            return -1;
         }
     }
     cmp_result = memcmp(key, current_key, key_size) != 0;

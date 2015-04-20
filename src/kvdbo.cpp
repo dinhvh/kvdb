@@ -105,6 +105,16 @@ void kvdbo_free(kvdbo * db)
     delete db;
 }
 
+void kvdbo_set_fsync_enabled(kvdbo * db, int enabled)
+{
+    kvdb_set_fsync_enabled(db->db, enabled);
+}
+
+int kvdbo_is_fsync_enabled(kvdbo * db)
+{
+    return kvdb_is_fsync_enabled(db->db);
+}
+
 const char * kvdbo_get_filename(kvdbo * db)
 {
     return kvdb_get_filename(db->db);

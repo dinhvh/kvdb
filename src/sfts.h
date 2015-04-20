@@ -20,6 +20,13 @@ void sfts_free(sfts * index);
 // returns the filename of the indexer.
 const char * sfts_get_filename(sfts * index);
 
+// the database will be resistant to crashes (durability) if fsync() is enabled.
+// it will be faster if fsync() is disabled.
+void sfts_set_fsync_enabled(sfts * index, int enabled);
+
+// returns whether fsync() is enabled.
+int sfts_is_fsync_enabled(sfts * index);
+
 // Open the indexer.
 //
 // Returns KVDB_ERROR_NONE when it succeeded.

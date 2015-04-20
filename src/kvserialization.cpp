@@ -8,7 +8,7 @@ void kv_encode_uint64(std::string & buffer, uint64_t value)
     int len = 0;
     while (1) {
         unsigned char remainder = value & 0x7f;
-        value = value >> 7;
+        value = value >> (uint64_t) 7;
         if (value == 0) {
             // last item to write.
             valuestr[len] = remainder;
@@ -32,7 +32,7 @@ static inline size_t internal_cstr_decode_uint64(const char * buffer, size_t siz
     
     while (p < final) {
         //position ++;
-        value += (* p & 0x7f) << s;
+        value += (uint64_t) ((uint64_t) (* p & 0x7f) << (uint64_t) s);
         if ((* p & 0x80) == 0) {
             break;
         }

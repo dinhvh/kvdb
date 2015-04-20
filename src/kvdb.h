@@ -22,10 +22,24 @@ void kvdb_free(kvdb * db);
 const char * kvdb_get_filename(kvdb * db);
 
 // sets the compression type for the values of the kvdb.
+// default is KVDB_COMPRESSION_TYPE_LZ4.
 void kvdb_set_compression_type(kvdb * db, int compression_type);
 
 // gets the compression type for the values of the kvdb.
 int kvdb_get_compression_type(kvdb * db);
+
+// the database will be resistant to crashes (durability) if fsync() is enabled.
+// it will be faster if fsync() is disabled.
+void kvdb_set_fsync_enabled(kvdb * db, int enabled);
+
+// returns whether fsync() is enabled.
+int kvdb_is_fsync_enabled(kvdb * db);
+
+// sets the write buffer size. Default is 0.
+void kvdb_set_write_buffer_size(kvdb * db, size_t size);
+
+// returns the write buffer size.
+size_t kvdb_get_write_buffer_size(kvdb * db);
 
 // opens a kvdb.
 //

@@ -21,6 +21,8 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
 
 int kv_block_recycle(kvdb * db, uint64_t offset);
 
+int kv_block_buffer_flush(kvdb * db);
+
 #ifdef __cplusplus
 }
 #endif

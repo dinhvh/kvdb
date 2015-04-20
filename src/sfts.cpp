@@ -87,6 +87,16 @@ const char * sfts_get_filename(sfts * index)
     return kvdbo_get_filename(index->sfts_db);
 }
 
+void sfts_set_fsync_enabled(sfts * index, int enabled)
+{
+    return kvdbo_set_fsync_enabled(index->sfts_db, enabled);
+}
+
+int sfts_is_fsync_enabled(sfts * index)
+{
+    return kvdbo_is_fsync_enabled(index->sfts_db);
+}
+
 int sfts_open(sfts * index)
 {
     int r;

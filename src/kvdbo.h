@@ -19,6 +19,13 @@ kvdbo * kvdbo_new(const char * filename);
 // destroy a kvdbo.
 void kvdbo_free(kvdbo * db);
 
+// the database will be resistant to crashes (durability) if fsync() is enabled.
+// it will be faster if fsync() is disabled.
+void kvdbo_set_fsync_enabled(kvdbo * db, int enabled);
+
+// returns whether fsync() is enabled.
+int kvdbo_is_fsync_enabled(kvdbo * db);
+
 // returns the filename of the kvdbo.
 const char * kvdbo_get_filename(kvdbo * db);
 
