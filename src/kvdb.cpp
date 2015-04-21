@@ -702,8 +702,6 @@ static int write_journal(kvdb * db, const char * filename, std::vector<std::pair
 
 static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
 {
-    char * journal = NULL;
-    int fd = -1;
     int r;
     char * journal_current;
     size_t remaining;
@@ -714,7 +712,6 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
     void * current_mapping = NULL;
     size_t current_mapping_size = 0;
     uint64_t current_mapping_offset = 0;
-    int res;
     
     r = open_journal(db);
     if (r < 0) {
