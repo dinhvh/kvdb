@@ -30,7 +30,7 @@
 #include "kvserialization.h"
 
 #define MARKER "KVDB"
-#define VERSION 7
+#define VERSION 8
 
 #define PRE_READ_KEY_SIZE 128
 #define MAX_ALLOCA_SIZE 4096
@@ -591,7 +591,7 @@ static int open_journal(kvdb * db)
         return KVDB_ERROR_IO;
     }
     
-    db->kv_journal_filesize = stat_buf.st_size;
+    db->kv_journal_filesize = size;
     
     if (db->kv_journal_filesize == 0) {
         db->kv_journal_mapping = NULL;
