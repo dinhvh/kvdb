@@ -19,6 +19,7 @@ struct kvdbo {
     // in memory buffers for operations.
     std::set<std::string> pending_keys;
     std::set<std::string> pending_keys_delete;
+    bool master_node_changed;
     // node identifier allocation.
     uint64_t next_node_id;
     
@@ -62,7 +63,7 @@ static unsigned int find_key(kvdbo_iterator * iterator, const std::string key);
 static void unserialize_words_list(std::vector<std::string> & word_list, char * value, size_t size);
 static void serialize_words_list(std::string & value, std::vector<std::string> & word_list);
 static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id);
-static int add_first_node(kvdbo * db);
+static void add_first_node(kvdbo * db);
 static int load_node(struct modified_node * node, unsigned int node_index);
 static int load_from_node_id(struct modified_node * node, uint64_t node_id);
 static int write_loaded_node(struct modified_node * node);
@@ -618,10 +619,7 @@ static int flush_pending_keys(kvdbo * db)
     }
     
     if ((db->pending_keys.size() > 0) && (db->nodes_ids.size() == 0)) {
-        r = add_first_node(db);
-        if (r < 0) {
-            return r;
-        }
+        add_first_node(db);
     }
     
     struct modified_node current_node;
@@ -690,6 +688,13 @@ static int flush_pending_keys(kvdbo * db)
     r = write_loaded_node(&current_node);
     if (r < 0) {
         return r;
+    }
+    
+    if (db->master_node_changed) {
+        r = write_master_node(db);
+        if (r < 0) {
+            return r;
+        }
     }
     
     db->pending_keys.clear();
@@ -850,22 +855,16 @@ static int write_single_loaded_node(struct modified_node * node)
     bool changed = false;
     if (node->node_id != node->db->nodes_ids[node->node_index]) {
         node->db->nodes_ids[node->node_index] = node->node_id;
-        changed = true;
+        node->db->master_node_changed = true;
     }
     if (node->has_first_key) {
         if (node->db->nodes_keys_count[node->node_index] != node->keys_count) {
             node->db->nodes_keys_count[node->node_index] = (uint32_t) node->keys_count;
-            changed = true;
+            node->db->master_node_changed = true;
         }
         if (node->db->nodes_first_keys[node->node_index] != node->first_key) {
             node->db->nodes_first_keys[node->node_index] = node->first_key;
-            changed = true;
-        }
-    }
-    if (changed) {
-        r = write_master_node(node->db);
-        if (r < 0) {
-            return r;
+            node->db->master_node_changed = true;
         }
     }
     
@@ -881,13 +880,13 @@ static uint64_t allocate_node_id(kvdbo * db)
 }
 
 // create the first node.
-static int add_first_node(kvdbo * db)
+static void add_first_node(kvdbo * db)
 {
     uint64_t node_id = allocate_node_id(db);
     db->nodes_ids.push_back(node_id);
     db->nodes_first_keys.push_back("");
     db->nodes_keys_count.push_back(0);
-    return write_master_node(db);
+    db->master_node_changed = true;
 }
 
 #define MAX_CHANGES_COUNT 16384
@@ -1051,13 +1050,7 @@ static int remove_node(kvdbo * db, unsigned int node_index)
     db->nodes_ids.erase(db->nodes_ids.begin() + node_index);
     db->nodes_first_keys.erase(db->nodes_first_keys.begin() + node_index);
     db->nodes_keys_count.erase(db->nodes_keys_count.begin() + node_index);
-    if (r < 0) {
-        return r;
-    }
-    r = write_master_node(db);
-    if (r < 0) {
-        return r;
-    }
+    db->master_node_changed = true;
     
     return KVDB_ERROR_NONE;
 }
@@ -1115,6 +1108,7 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
         }
     }
     delete [] nodes;
+    db->master_node_changed = true;
     
     return KVDB_ERROR_NONE;
 }
@@ -1122,6 +1116,7 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
 void kvdbo_transaction_begin(kvdbo * db)
 {
     db->in_transaction = true;
+    db->master_node_changed = false;
     kvdb_transaction_begin(db->db);
 }
 
