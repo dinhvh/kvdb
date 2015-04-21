@@ -76,7 +76,7 @@ kvdb * kvdb_new(const char * filename)
     db->kv_write_buffer = NULL;
     db->kv_write_buffer_size = 0;
     db->kv_write_buffer_remaining = 0;
-    db->kv_write_buffer_next_block = db->kv_write_buffer;
+    db->kv_write_buffer_next_block = NULL;
     db->kv_write_buffer_location = 0;
     return db;
 }

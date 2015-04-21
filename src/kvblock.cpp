@@ -165,6 +165,7 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     if ((db->kv_write_buffer_location == 0) && use_new_block)  {
         db->kv_write_buffer_remaining = db->kv_write_buffer_size;
         db->kv_write_buffer_location = db->kv_transaction->filesize;
+        db->kv_write_buffer_next_block = db->kv_write_buffer;
     }
     
     uint64_t size = 8 + 4 + 1 + 8 + 8 + block_size;
