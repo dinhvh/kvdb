@@ -612,7 +612,7 @@ static void node_delete_key(struct modified_node * node, std::string key)
     node->buffer.append(&command, 1);
     kv_encode_uint64(node->buffer, key.length());
     node->buffer.append(key);
-    node->changes_count --;
+    node->changes_count ++;
 }
 
 static void node_add_key(struct modified_node * node, std::string key)
