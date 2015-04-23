@@ -139,11 +139,12 @@ uint64_t kv_block_create(kvdb * db, uint64_t next_block_offset, uint32_t hash_va
     
     int use_new_block = 0;
     uint64_t offset = 0;
-    if (db->kv_transaction->recycled_blocks[log2_size].size() > 0) {
-        offset = db->kv_transaction->recycled_blocks[log2_size][db->kv_transaction->recycled_blocks[log2_size].size() - 1];
-        db->kv_transaction->recycled_blocks[log2_size].erase(db->kv_transaction->recycled_blocks[log2_size].begin() + db->kv_transaction->recycled_blocks[log2_size].size() - 1);
-    }
-    else if (db->kv_transaction->first_recycled_blocks[log2_size] != 0) {
+    
+    // can't reuse in-transaction-recycled blocks because we can't overwrite of
+    // data that might need to be restored if the transaction is aborted.
+    // therefore, we don't try to use db->kv_transaction->recycled_blocks.
+    
+    if (db->kv_transaction->first_recycled_blocks[log2_size] != 0) {
         offset = db->kv_transaction->first_recycled_blocks[log2_size];
         uint64_t next_free_offset;
         if ((db->kv_write_buffer_location != 0) && (offset >= db->kv_write_buffer_location)) {

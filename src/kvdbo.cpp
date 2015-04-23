@@ -51,6 +51,8 @@ struct kvdbo_iterator {
     std::vector<std::string> keys;
     // current key index in the node.
     int key_index;
+    // error when trying to flush data.
+    int flush_result;
 };
 
 #define NODE_PREFIX "n"
@@ -248,6 +250,9 @@ kvdbo_iterator * kvdbo_iterator_new(kvdbo * db)
     kvdbo_iterator * iterator = new kvdbo_iterator;
     iterator->key_index = -1;
     iterator->db = db;
+    
+    iterator->flush_result = flush_pending_keys(db);
+    
     return iterator;
 }
 
@@ -258,6 +263,9 @@ void kvdbo_iterator_free(kvdbo_iterator * iterator)
 
 int kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
 {
+    if (iterator->flush_result < 0) {
+        return iterator->flush_result;
+    }
     if (iterator->db->nodes_ids.size() == 0) {
         return KVDB_ERROR_NONE;;
     }
@@ -274,6 +282,9 @@ int kvdbo_iterator_seek_first(kvdbo_iterator * iterator)
 
 int kvdbo_iterator_seek_last(kvdbo_iterator * iterator)
 {
+    if (iterator->flush_result < 0) {
+        return iterator->flush_result;
+    }
     if (iterator->db->nodes_ids.size() == 0) {
         return KVDB_ERROR_NONE;
     }
@@ -292,6 +303,9 @@ int kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
                                const char * key,
                                size_t key_size)
 {
+    if (iterator->flush_result < 0) {
+        return iterator->flush_result;
+    }
     if (iterator->db->nodes_ids.size() == 0) {
         return KVDB_ERROR_NONE;
     }
