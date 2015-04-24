@@ -910,7 +910,9 @@ static int internal_kvdb_set(kvdb * db, const char * key, size_t key_size, const
         db->kv_transaction->tables.push_back(table);
     }
     
+#if 0
     table_transaction_bloom_filter_set(db, table_index, hash_values + 1, KV_BLOOM_FILTER_HASH_COUNT - 1);
+#endif
     
     uint32_t cell_index = hash_values[0] % db->kv_transaction->tables[table_index].maxcount;
     
@@ -1160,6 +1162,7 @@ static int find_key(kvdb * db, const char * key, size_t key_size,
     struct kvdb_table * table = db->kv_first_table;
     uint32_t table_index = 0;
     while (table != NULL) {
+#if 0
         // Is the key likely to be in this table?
         // Use a bloom filter to guess.
         if (!table_bloom_filter_might_contain(table, hash_values + 1, KV_BLOOM_FILTER_HASH_COUNT - 1)) {
@@ -1167,6 +1170,7 @@ static int find_key(kvdb * db, const char * key, size_t key_size,
             table = table->kv_next_table;
             continue;
         }
+#endif
         
         // Find a bucket.
         uint32_t idx = hash_values[0] % ntoh64(* table->kv_maxcount);

@@ -11,6 +11,7 @@
 
 #include "kvmurmurhash.h"
 
+#if 0
 static inline void table_transaction_bloom_filter_set(struct kvdb * db, unsigned int table_index,
                                                       uint32_t * hash_values, int hash_count)
 {
@@ -39,6 +40,7 @@ static inline int table_bloom_filter_might_contain(struct kvdb_table * table, ui
     }
     return 1;
 }
+#endif
 
 static inline void table_bloom_filter_compute_hash(uint32_t * hash_values, unsigned int hash_count,
                                                    const char * key, size_t key_size)
