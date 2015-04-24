@@ -319,6 +319,22 @@ int kvdbo_iterator_seek_after(kvdbo_iterator * iterator,
     }
     iterator->node_index = idx;
     iterator->key_index = find_key(iterator, key_string);
+
+    while (kvdbo_iterator_is_valid(iterator)) {
+        const char * other_key;
+        size_t other_key_size;
+        kvdbo_iterator_get_key(iterator, &other_key, &other_key_size);
+        if (std::string(other_key, other_key_size) < key_string) {
+            r = kvdbo_iterator_next(iterator);
+            if (r < 0) {
+                return r;
+            }
+        }
+        else {
+            break;
+        }
+    }
+
     return KVDB_ERROR_NONE;
 }
 
