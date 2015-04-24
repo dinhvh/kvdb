@@ -506,6 +506,7 @@ static int read_master_node(kvdbo * db)
     }
     size_t remaining = size - position;
     unserialize_words_list(db->nodes_first_keys, value + position, remaining);
+    free(value);
     return KVDB_ERROR_NONE;
 }
 
