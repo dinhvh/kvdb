@@ -198,6 +198,9 @@ int sfts_u_set2(sfts * index, uint64_t doc, const UChar ** utext, int count)
     int result = KVDB_ERROR_NONE;
     std::set<uint64_t> wordsids_set;
     for(unsigned int i = 0 ; i < count ; i ++) {
+        if (utext[i] == NULL) {
+            continue;
+        }
         char * transliterated = kv_transliterate(utext[i], kv_u_get_length(utext[i]));
         if (transliterated == NULL) {
             continue;
