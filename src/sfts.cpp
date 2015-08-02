@@ -247,6 +247,9 @@ static int tokenize(sfts * index, uint64_t doc, const UChar * text)
         }
         CFRange range = CFStringTokenizerGetCurrentTokenRange(tokenizer);
         char * transliterated = kv_transliterate(&text[range.location], (int) range.length);
+        if (* transliterated == 0) {
+            continue;
+        }
         if (transliterated == NULL) {
             continue;
         }
@@ -320,7 +323,12 @@ static int add_to_indexer(sfts * index, uint64_t doc, const char * word,
     std::string word_str(word);
     std::string value;
     uint64_t wordid;
-    
+
+    // empty word.
+    if (* word == 0) {
+        return KVDB_ERROR_NONE;
+    }
+
     std::unordered_map<std::string, word_docsids>::iterator iterator = index->words_buffer.find(word_str);
     if (iterator != index->words_buffer.end()) {
         iterator->second.docsids.insert(doc);
