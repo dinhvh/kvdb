@@ -149,6 +149,7 @@ int kvdbo_open(kvdbo * db)
         return r;
     }
     db->opened = true;
+    kvdbo_check_sorted(db);
     return KVDB_ERROR_NONE;
 }
 
@@ -490,6 +491,7 @@ static int iterator_load_node(kvdbo_iterator * iterator, uint64_t node_id)
 static int write_master_node(kvdbo * db)
 {
     std::string buffer;
+    kv_encode_uint64(buffer, db->next_node_id);
     kv_encode_uint64(buffer, db->nodes_ids.size());
     for(uint64_t i = 0 ; i < db->nodes_ids.size() ; i ++) {
         kv_encode_uint64(buffer, db->nodes_ids[i]);
@@ -525,7 +527,10 @@ static int read_master_node(kvdbo * db)
     std::string buffer(value, size);
     db->nodes_ids.clear();
     uint64_t count = 0;
+    uint64_t next_node_id = 1;
     size_t position = 0;
+    position = kv_decode_uint64(buffer, position, &next_node_id);
+    db->next_node_id = next_node_id;
     position = kv_decode_uint64(buffer, position, &count);
     for(uint64_t i = 0 ; i < count ; i ++) {
         uint64_t node_id = 0;
@@ -936,6 +941,7 @@ static uint64_t allocate_node_id(kvdbo * db)
 {
     uint64_t node_id = db->next_node_id;
     db->next_node_id ++;
+    db->master_node_changed = true;
     return node_id;
 }
 
@@ -1183,6 +1189,9 @@ static int remove_node(kvdbo * db, unsigned int node_index)
 static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
                       std::set<std::string> & keys)
 {
+#if 0
+    fprintf(stderr, "*** split nodes ***\n");
+#endif
     // creates as many nodes as needed for the split.
     struct modified_node * nodes = new modified_node[count];
     for(unsigned int i = 0 ; i < count ; i ++) {
@@ -1215,7 +1224,20 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
         current_node->keys_count ++;
         it ++;
     }
-    
+
+#if 0
+    fprintf(stderr, "first keys: ");
+    for(unsigned int i = 0 ; i < count ; i ++) {
+        fprintf(stderr, "%s (%lli) ", nodes[i].first_key.c_str(), nodes[i].node_id);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "first keys (before): ");
+    for(unsigned int i = 0 ; i < db->nodes_first_keys.size() ; i ++) {
+        fprintf(stderr, "%s (%lli) ", db->nodes_first_keys[i].c_str(), db->nodes_ids[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
+
     // adjust the master node information.
     int r;
     remove_node_id(db, db->nodes_ids[node_index]);
@@ -1234,6 +1256,14 @@ static int split_node(kvdbo * db, unsigned int node_index, unsigned int count,
     }
     delete [] nodes;
     db->master_node_changed = true;
+
+#if 0
+    fprintf(stderr, "first keys (after): ");
+    for(unsigned int i = 0 ; i < db->nodes_first_keys.size() ; i ++) {
+        fprintf(stderr, "%s (%lli) ", db->nodes_first_keys[i].c_str(), db->nodes_ids[i]);
+    }
+    fprintf(stderr, "\n");
+#endif
 
     return KVDB_ERROR_NONE;
 }
