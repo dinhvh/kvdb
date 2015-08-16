@@ -149,7 +149,7 @@ int kvdbo_open(kvdbo * db)
         return r;
     }
     db->opened = true;
-    kvdbo_check_sorted(db);
+    //kvdbo_check_sorted(db);
     return KVDB_ERROR_NONE;
 }
 
