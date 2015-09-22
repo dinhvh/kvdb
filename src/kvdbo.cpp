@@ -917,7 +917,6 @@ static int write_single_loaded_node(struct modified_node * node)
     }
     
     // update the master node.
-    bool changed = false;
     if (node->node_id != node->db->nodes_ids[node->node_index]) {
         node->db->nodes_ids[node->node_index] = node->node_id;
         node->db->master_node_changed = true;
