@@ -188,7 +188,7 @@ int kvdb_open(kvdb * db)
         res = r;
         goto error;
     }
-    
+
     if (stat_buf.st_size == 0) {
         create_file = 1;
         r = kvdb_create(db);
@@ -205,7 +205,7 @@ int kvdb_open(kvdb * db)
     }
     
     db->kv_opened = true;
-    
+
     return KVDB_ERROR_NONE;
     
 error:
@@ -767,7 +767,7 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
         remaining -= data_size;
         
         changes ++;
-        
+
         if ((current_mapping == NULL) || (offset + data_size > current_mapping_offset + current_mapping_size)) {
             if (current_mapping != NULL) {
                 munmap(current_mapping, current_mapping_size);
@@ -781,6 +781,12 @@ static int kvdb_restore_journal(kvdb * db, uint64_t filesize)
                 return KVDB_ERROR_IO;
             }
             current_mapping_size = DEFAULT_MAPPING_SIZE;
+        }
+        if (offset + data_size > filesize) {
+            if (current_mapping != NULL) {
+                munmap(current_mapping, current_mapping_size);
+            }
+            return KVDB_ERROR_INVALID_JOURNAL;
         }
         if (data_size == 8) {
             * (uint64_t * ) (((char *) current_mapping) + offset - current_mapping_offset) = * (uint64_t *) data;
