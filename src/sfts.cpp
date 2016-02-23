@@ -247,14 +247,16 @@ static int tokenize(sfts * index, uint64_t doc, const UChar * text)
         }
         CFRange range = CFStringTokenizerGetCurrentTokenRange(tokenizer);
         char * transliterated = kv_transliterate(&text[range.location], (int) range.length);
-        if (* transliterated == 0) {
+        if (transliterated == NULL) {
             continue;
         }
-        if (transliterated == NULL) {
+        if (* transliterated == 0) {
+            free(transliterated);
             continue;
         }
         int r = add_to_indexer(index, doc, transliterated, wordsids_set);
         if (r < 0) {
+            free(transliterated);
             result = r;
             break;
         }
