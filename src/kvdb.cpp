@@ -17,6 +17,7 @@
 #include <lz4.h>
 #include <string>
 #include <map>
+#include <unordered_set>
 
 #include "kvassert.h"
 #include "kvendian.h"
@@ -843,9 +844,16 @@ static int collect_blocks(kvdb * db, unsigned int table_index, uint32_t cell_ind
     else {
         struct kvdb_item * item = &table->kv_items[cell_index];
         uint64_t next_offset = ntoh64(item->kv_offset);
-        
+
+        std::unordered_set<uint64_t> marked_offset;
         // Run through all chained blocks in the bucket.
         while (next_offset != 0) {
+            // Check for corrupted DB.
+            if (marked_offset.find(next_offset) != marked_offset.end()) {
+                return KVDB_ERROR_CORRUPTED;
+            }
+            marked_offset.insert(next_offset);
+
             uint64_t current_offset;
             ssize_t r;
             
@@ -992,9 +1000,17 @@ static void show_bucket(kvdb * db, uint32_t idx)
     fprintf(stderr, "bucket: %llu\n", (unsigned long long) idx);
     
     uint64_t previous_offset = 0;
-    
+
+    std::unordered_set<uint64_t> marked_offset;
     // Run through all chained blocks in the bucket.
     while (next_offset != 0) {
+        // Check for corrupted DB.
+        if (marked_offset.find(next_offset) != marked_offset.end()) {
+            fprintf(stderr, "corrupted\n");
+            return;
+        }
+        marked_offset.insert(next_offset);
+
         uint32_t current_hash_value;
         uint64_t current_offset;
         uint8_t log2_size;
@@ -1197,9 +1213,16 @@ static int find_key(kvdb * db, const char * key, size_t key_size,
             fprintf(stderr, "before\n");
             show_bucket(db, idx);
         }
-        
+
+        std::unordered_set<uint64_t> marked_offset;
         // Run through all chained blocks in the bucket.
         while (next_offset != 0) {
+            // Check for corrupted DB.
+            if (marked_offset.find(next_offset) != marked_offset.end()) {
+                return KVDB_ERROR_CORRUPTED;
+            }
+            marked_offset.insert(next_offset);
+
             uint64_t current_offset = next_offset;
             struct find_key_cb_params params;
             r = match_block_with_key(db, current_offset, hash_values[0], key, key_size, &params);
@@ -1510,8 +1533,15 @@ int kvdb_enumerate_keys(kvdb * db, kvdb_enumerate_callback callback, void * cb_d
                 }
             }
 			uint64_t current_offset = ntoh64(item->kv_offset);
+            std::unordered_set<uint64_t> marked_offset;
 			// Run through all chained blocks in the bucket.
 			while (current_offset != 0) {
+                // Check for corrupted DB.
+                if (marked_offset.find(current_offset) != marked_offset.end()) {
+                    return KVDB_ERROR_CORRUPTED;
+                }
+                marked_offset.insert(current_offset);
+
                 uint64_t next_offset;
                 int r = enumerate_offset(db, current_offset, callback, cb_data, &stop, &next_offset);
                 if (r < 0) {
